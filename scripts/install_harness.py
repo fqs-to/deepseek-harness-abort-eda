@@ -8,7 +8,7 @@ from shutil import copyfile
 
 TEAM_DIR = Path(__file__).resolve().parents[1] / "harness/claude/AgenticBench/agent/loss_decoder"
 TEAM_FILES = (
-    "agent.py", "decoder_probe.py", "opening_review_prompt.md",
+    "agent.py", "decoder_probe.py", "opening_gradients.py", "opening_review_prompt.md",
     "paired_feedback.py", "prompt.md", "search_policy.py",
 )
 START_HASH = "f18b6e303cad3e67b7dd5be6a63a2ca7399e43997fd0c900334adae1a31bc87b"

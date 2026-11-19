@@ -131,9 +131,11 @@ DECODERS = {
     # Contract and equivalence fixtures for the decoder probe.
     "noop": '    """Rescale the labels."""\n' + REFERENCE + "    return labels * 1\n",
     "float_labels": '    """Return soft labels."""\n' + REFERENCE + "    return labels * 1.0\n",
-    "lopsided": '    """Put the nearest third on top."""\n' + CENTERS
-                + "    projection = (embeddings * (center_top - center_bottom)).sum(axis=1)\n"
-                + "    return (projection > np.quantile(projection, 0.67)).astype(np.int64)\n",
+    "empty": '    """Return an empty top side."""\n    return np.zeros_like(node_areas).astype(np.int64)\n',
+    "skewed": '    """Produce a two-sided, roughly 55% top-area proposal before closure."""\n'
+              + "    order = np.argsort(embeddings[:, 0])\n"
+              + "    top = np.cumsum(node_areas[order]) <= 0.55 * node_areas.sum()\n"
+              + "    return top[np.argsort(order)].astype(np.int64)\n",
 }
 
 

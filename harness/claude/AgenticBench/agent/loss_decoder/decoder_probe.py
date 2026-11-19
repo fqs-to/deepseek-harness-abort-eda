@@ -22,10 +22,9 @@ except Exception:  # The probe is optional; the search runs without it.
     np = None
 
 
-PROBE_SEEDS = (1001, 1002, 1003, 1004, 1005, 1006)
+PROBE_SEEDS = range(6)
 PROBE_ITERATIONS = 50
 PROBE_BALANCE = 0.5
-AREA_WINDOW = (0.47, 0.53)
 PROBE_SECONDS = 20
 SAFE_BUILTINS = {name: getattr(builtins, name)
                  for name in ("abs", "bool", "float", "int", "len", "max", "min", "range", "round", "sum")}
@@ -66,20 +65,26 @@ def reference_global_two_way(embeddings, node_areas, seed, max_iterations, balan
     return np.asarray(labels.tolist(), dtype=np.int64)
 
 
-def _probe_inputs(seed):
-    """Unit-norm group embeddings in a narrow cone or two unequal lobes, with skewed physical areas."""
-    generator = random.Random(seed)
-    count, width = 240 + 37 * (seed % 5), 12 + 4 * (seed % 3)
-    axis = [generator.gauss(0, 1) for _ in range(width)]
-    offset = [generator.gauss(0, 1) for _ in range(width)]
-    lobes = seed % 2
-    rows = []
-    for _ in range(count):
-        side = 0.6 if lobes and generator.random() < 0.4 else 0.0
-        rows.append([a + side * b + 0.25 * generator.gauss(0, 1) for a, b in zip(axis, offset)])
-    embeddings = np.asarray(rows, dtype=np.float64)
-    embeddings = (embeddings / np.sqrt(np.sum(embeddings ** 2, axis=1, keepdims=True))).astype(np.float32)
-    areas = np.asarray([20.0 * generator.lognormvariate(0, 0.8) for _ in range(count)], dtype=np.float64)
+def _probe_inputs(seed, profile="random"):
+    """Generate unit-length embeddings and positive group areas for an interface check."""
+    generator = np.random.default_rng(seed)
+    count, width = 256, 16
+    embeddings = generator.standard_normal((count, width))
+    if profile == "clustered":
+        # Three overlapping directions in a plane, with independent noise in every dimension.
+        angles = generator.integers(3, size=count) * (2 * np.pi / 3)
+        embeddings *= 0.16
+        embeddings[:, 0] += np.cos(angles)
+        embeddings[:, 1] += np.sin(angles)
+    # Use the official decoder's float64 input. Running the ndarray reduction here also
+    # loads NumPy's reduction helpers before validated code enters its restricted scope.
+    embeddings = embeddings / np.sqrt(np.square(embeddings).sum(axis=1, keepdims=True))
+    if profile == "random":
+        areas = generator.uniform(1, 2, size=count)
+    else:
+        areas = np.ones(count)
+        if profile == "unequal_areas":
+            areas[generator.choice(count, size=count // 16, replace=False)] = 9.0
     embeddings.setflags(write=False)
     areas.setflags(write=False)
     return embeddings, areas
@@ -100,10 +105,9 @@ def _contract_issue(labels, areas):
         return f"it returned dtype {labels.dtype}; labels must be integers 0 or 1"
     if not np.all((labels == 0) | (labels == 1)):
         return "it returned values other than 0 and 1"
-    share = float(areas[labels == 1].sum() / areas.sum())
-    if not AREA_WINDOW[0] <= share <= AREA_WINDOW[1]:
-        return (f"it put {share:.3f} of the area on the top die; outside {AREA_WINDOW[0]}-{AREA_WINDOW[1]} "
-                "the protected repair rewrites the assignment, so the edit would not be tested")
+    # The official wrapper applies area and macro constraints after decoding.
+    if not np.any(labels == 0) or not np.any(labels == 1):
+        return "it returned an empty side"
     return None
 
 
@@ -126,26 +130,34 @@ def probe_decoder(source, parent_source):
             signal.setitimer(signal.ITIMER_REAL, PROBE_SECONDS)
         candidate, parent = _decoder(source), _decoder(parent_source)
         identical = True
-        for seed in PROBE_SEEDS:
-            embeddings, areas = _probe_inputs(seed)
-            arguments = (embeddings, areas, seed, PROBE_ITERATIONS, PROBE_BALANCE)
-            try:
-                labels = candidate(*arguments)
-            except (NameError, _Timeout):
-                return None  # The probe's sandbox is narrower than the official one: inconclusive.
-            except Exception as error:
-                return (f"The decoder raised {type(error).__name__} on a synthetic probe with read-only "
-                        f"inputs: {str(error)[:160]}")
-            issue = _contract_issue(labels, areas)
-            if issue:
-                return "The decoder breaks the published contract on a synthetic probe: " + issue
-            try:
-                identical = identical and np.array_equal(np.asarray(labels), np.asarray(parent(*arguments)))
-            except Exception:
-                identical = False
+        regular = ((seed, "random") for seed in PROBE_SEEDS)
+        for batch in (regular, ((0, "unequal_areas"), (0, "clustered"))):
+            if not identical:
+                break
+            for seed, profile in batch:
+                embeddings, areas = _probe_inputs(seed, profile)
+                arguments = (embeddings, areas, seed, PROBE_ITERATIONS, PROBE_BALANCE)
+                try:
+                    labels = candidate(*arguments)
+                except (NameError, _Timeout):
+                    return None  # The probe's sandbox is narrower than the official one: inconclusive.
+                except KeyError as error:
+                    # Some NumPy versions lazily load internal helpers from the caller's scope.
+                    if error.args == ("__import__",):
+                        return None
+                    return f"The decoder raised KeyError on a synthetic probe: {str(error)[:160]}"
+                except Exception as error:
+                    return (f"The decoder raised {type(error).__name__} on a synthetic probe with read-only "
+                            f"inputs: {str(error)[:160]}")
+                issue = _contract_issue(labels, areas)
+                if issue:
+                    return "The decoder breaks the published contract on a synthetic probe: " + issue
+                try:
+                    identical = identical and np.array_equal(np.asarray(labels), np.asarray(parent(*arguments)))
+                except Exception:
+                    identical = False
         if identical:
-            return ("The decoder returns exactly the parent's labels on every synthetic probe, so it is "
-                    "behaviorally equivalent to the parent. Change a decision that alters the labels.")
+            return "The proposed decoder matched the parent's labels on all synthetic probe inputs."
         return None
     except (_Timeout, SyntaxError, KeyError):
         return None

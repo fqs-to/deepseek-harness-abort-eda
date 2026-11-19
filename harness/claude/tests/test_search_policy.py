@@ -1,5 +1,6 @@
 """Unit tests for the revised decision rules and the paths the ten-evaluation replay does not reach."""
 
+import json
 from pathlib import Path
 import shutil
 import sys
@@ -64,6 +65,15 @@ class Evidence(unittest.TestCase):
         cells[4].update(cell_changes)
         return {"status": "succeeded", "score": 1.0, "cells": cells}
 
+    def test_one_identical_cell_does_not_classify_nine_as_inert(self):
+        summary = self.summary()
+        summary["parent_comparison"] = {
+            "parent_source": "published_initial_reference",
+            "cells": [{"wns_slack_delta_ns": 0.0, "tns_slack_delta_ns": 0.0}],
+        }
+        summary["partition_changes_vs_initial"] = {"reported_cells": 1, "identical_assignments": 1}
+        self.assertNotEqual(policy.classify(summary, support.CELLS)[0], "inert")
+
     def test_only_a_full_verified_matrix_is_complete(self):
         self.assertTrue(policy.matrix_complete(self.summary(), support.CELLS))
         self.assertTrue(policy.matrix_complete(self.summary(status="failed", score=-100.0), support.CELLS))
@@ -73,6 +83,20 @@ class Evidence(unittest.TestCase):
         short = self.summary()
         short["cells"].pop()
         self.assertFalse(policy.matrix_complete(short, support.CELLS))
+
+    def test_official_scoring_includes_published_penalties_and_requires_all_cells(self):
+        penalty = {"status": "penalized", "valid": False, "score": -100,
+                   "failure": {"kind": "runtime_environment"}}
+        self.assertTrue(policy.officially_scored(self.summary(**penalty), support.CELLS))
+        for change in ({"status": "not_completed"}, {"status": "failed"}, {"score": None},
+                       {"score": -90}, {"valid": True}):
+            self.assertFalse(policy.officially_scored(self.summary(**{**penalty, **change}), support.CELLS))
+        summary = self.summary()
+        summary["cells"][-1] = summary["cells"][0]
+        self.assertFalse(policy.officially_scored(summary, support.CELLS))
+        summary = self.summary()
+        summary["status"] = "failed"
+        self.assertFalse(policy.officially_scored(summary, support.CELLS))
 
     def test_same_timing_as_the_parent_is_inert_and_infrastructure_is_not_evidence(self):
         same = self.summary()
@@ -155,6 +179,32 @@ class NextStep(unittest.TestCase):
 
 
 class AgentPaths(unittest.TestCase):
+    def test_terminal_choice_can_differ_from_search_incumbent_after_a_scored_penalty(self):
+        workdir = support.make_workdir()
+        self.addCleanup(shutil.rmtree, workdir)
+        agent, folder = support.load_agent(AGENT_DIR, workdir)
+        bridge = support.MockBridge(workdir, replay.world, None, evaluation_limit=2)
+        clean = bridge.submit_evaluation(support.program(decoder="flip"), "e-first")
+        leader = bridge.submit_evaluation(support.program(decoder="gap"), "e-second")
+        cells = leader["feedback"]["cells"]
+        for cell in cells:
+            cell["score"] = 60.0
+        cells[0].update(status="penalized", valid=False, score=-100.0, metrics={},
+                        reason="30_placement: insufficient GPU memory")
+        leader["feedback"]["score"] = (8 * 60.0 - 100.0) / 9
+        self.assertGreater(leader["feedback"]["score"], clean["feedback"]["score"])
+        self.assertEqual(agent.Agent().run(bridge), leader["candidate_id"])
+        events = [json.loads(line) for line in (folder / "search.jsonl").read_text().splitlines()]
+        self.assertEqual([e["candidate_id"] for e in events if e["event"] == "incumbent"], [clean["candidate_id"]])
+        self.assertEqual(events[-1]["selection"]["eligible_candidates"], 2)
+        self.assertEqual(events[-1]["score"], leader["feedback"]["score"])
+        self.assertEqual((folder / "program.py").read_text(), leader["source"])
+
+        # A legacy cached partial mean can survive even when every evaluation lacks a finished cell.
+        cells[0]["status"] = clean["feedback"]["cells"][0]["status"] = "not_completed"
+        with self.assertRaisesRegex(RuntimeError, "No candidate completed"):
+            agent.Agent().run(bridge)
+
     def test_recombination_is_an_exact_splice_that_costs_no_model_call(self):
         def world(source, attempt):
             spec = replay.world(source, attempt)

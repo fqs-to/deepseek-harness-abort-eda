@@ -1,12 +1,15 @@
 """Summarize paired training feedback without changing official scores."""
 
 from collections import defaultdict
+import csv
+from decimal import Decimal
 import gzip
 import json
 from math import isfinite
 from pathlib import Path
 import re
 from statistics import fmean, median
+import zlib
 
 
 PHYSICAL_STAGE = re.compile(r"\b(?:20_partition|30_placement|40_pdn|50_hbt|60_opt)\b")
@@ -14,8 +17,10 @@ RESOURCE_ERRORS = (
     "insufficient available memory", "insufficient free disk", "insufficient gpu memory",
     "no space left on device", "cannot connect to the docker daemon", "resource admission timed out",
 )
-PARTITION_FIELDS = ("partition_assignment_identical", "partition_assignment_changed_count",
-                    "partition_assignment_changed_fraction", "tp_gnn_repair_moved_area_fraction")
+ASSIGNMENT_FIELDS = ("partition_assignment_identical", "partition_assignment_changed_count",
+                     "partition_assignment_changed_fraction")
+STAGE_FIELDS = ("tp_gnn_balanced_timing_weighted_cut", "tp_gnn_feasible_timing_weighted_cut",
+                "tp_gnn_repair_moved_area_fraction")
 
 
 def _number(value):
@@ -60,34 +65,223 @@ def _reason(cell):
     return str(cell.get("reason") or cell.get("error_message") or "")[:240] or None
 
 
-def published_partition_changes(result, evaluation_root):
-    """Read extra diagnostics from the organizer's published cell result."""
-    request_id = result["request_id"]
+def _published_cells(result, evaluation_root):
+    request_id = result.get("request_id", "")
     if result["status"] != "succeeded" or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", request_id):
         return {}
     output = Path(evaluation_root) / request_id
     if result.get("artifacts_dir") != str(output):
         return {}
-    changes = {}
+    folders = {}
     for cell in result["feedback"]["cells"]:
         case, seed = _cell_key(cell)
-        if cell.get("status") != "succeeded" or not re.fullmatch(r"[A-Za-z0-9_-]+", case) or not seed.isdigit():
-            continue
-        path = output / "cells" / case / seed / "result/evaluation_result.json"
-        try:
-            if path.is_file():
-                with path.open("rb") as stream:
-                    native = json.loads(stream.read(2 * 1024 * 1024 + 1))
-            else:
-                with gzip.open(path.with_suffix(".json.gz"), "rb") as stream:
-                    native = json.loads(stream.read(2 * 1024 * 1024 + 1))
-            metrics = native.get("metrics", {})
-            count = metrics.get("partition_assignment_changed_count")
-        except (OSError, ValueError, AttributeError, EOFError):
-            continue
+        if cell.get("status") == "succeeded" and re.fullmatch(r"[A-Za-z0-9_-]+", case) and seed.isdigit():
+            folders[case, seed] = output / "cells" / case / seed / "result"
+    return folders
+
+
+def _native_metrics(folder):
+    path = folder / "evaluation_result.json"
+    try:
+        if path.is_file():
+            stream = path.open("rb")
+        else:
+            stream = gzip.open(path.with_suffix(".json.gz"), "rb")
+        with stream:
+            metrics = json.loads(stream.read(2 * 1024 * 1024 + 1)).get("metrics", {})
+        return metrics if isinstance(metrics, dict) else {}
+    except (OSError, ValueError, AttributeError, EOFError):
+        return {}
+
+
+def published_partition_diagnostics(result, evaluation_root):
+    """Read assignment comparisons and within-cell stage measurements from the native result."""
+    changes, stages = {}, {}
+    for key, folder in _published_cells(result, evaluation_root).items():
+        metrics = _native_metrics(folder)
+        count = metrics.get("partition_assignment_changed_count")
         if type(count) is int and count >= 0 and metrics.get("partition_assignment_identical") == int(count == 0):
-            changes[case, seed] = {key: metrics[key] for key in PARTITION_FIELDS if _number(metrics.get(key)) is not None}
-    return changes
+            changes[key] = {field: metrics[field] for field in ASSIGNMENT_FIELDS if _number(metrics.get(field)) is not None}
+        observed = {field: metrics[field] for field in STAGE_FIELDS if _number(metrics.get(field)) is not None}
+        if observed:
+            stages[key] = observed
+    return changes, stages
+
+
+def _point_type(header):
+    # Long instance names put the parenthesized OpenSTA description on a continuation line.
+    reason = re.search(r"\s+\(([^\n]*)\)\s*$", header)
+    description = reason[1] if reason else ""
+    if description.startswith("input port"):
+        return "input"
+    if description.startswith("output port"):
+        return "output"
+    if re.match(r"(?:(?:rising|falling) )?edge-triggered flip-flop\b", description):
+        return "register"
+    return "unknown"
+
+
+_TIME = r"[+-]?\d+(?:\.\d+)?"
+_PIN_ROW = re.compile(rf"{_TIME}\s+{_TIME}\s+[\^v]\s+((u_top|u_bottom)/\S+/\S+)\s+\([^()\s]+\)")
+
+
+def _data_layer_switches(rows, start, end):
+    """Count adjacent layer changes on the native report's ideal-clock register data path."""
+    if not start or not end or (_point_type(start), _point_type(end)) != ("register", "register"):
+        return None
+    # Verify the native table, launch clock, and first arrival total. Any other timing-row
+    # format (including propagated clocks, external delays and unqualified pins) is unknown.
+    if (len(rows) < 8 or rows[0].split() != ["Delay", "Time", "Description"]
+            or not re.fullmatch(r"-+", rows[1])
+            or not re.fullmatch(rf"{_TIME}\s+{_TIME}\s+clock \S+ \((?:rise|fall) edge\)", rows[2])
+            or not re.fullmatch(rf"{_TIME}\s+{_TIME}\s+clock network delay \(ideal\)", rows[3])
+            or not re.fullmatch(rf"{_TIME}\s+data arrival time", rows[-1])):
+        return None
+    pins = []
+    for row in rows[4:-1]:
+        match = _PIN_ROW.fullmatch(row)
+        if not match:
+            return None
+        pins.append((match[1], match[2]))
+    start_name, end_name = (header.partition(":")[2].split()[0] for header in (start, end))
+    # OpenSTA prints the launching register's clock and output pins, then the data path.
+    if (pins[0][0].rsplit("/", 1)[0] != start_name or pins[1][0].rsplit("/", 1)[0] != start_name
+            or pins[0][0] == pins[1][0] or pins[-1][0].rsplit("/", 1)[0] != end_name):
+        return None
+    return sum(before[1] != after[1] for before, after in zip(pins, pins[1:]))
+
+
+def _reported_setup_paths(stream):
+    start = end = kind = last_header = None
+    rows = switches = None
+    for raw in stream:
+        line = raw.rstrip()
+        if line.startswith("Startpoint:"):
+            if start is not None and kind in (None, "max"):
+                raise ValueError("incomplete setup path")
+            start, end, kind, last_header = line, None, None, "start"
+        elif line.startswith("Endpoint:"):
+            end, last_header = line, "end"
+        elif last_header and line.lstrip().startswith("("):
+            if last_header == "start":
+                start += " " + line.strip()
+            else:
+                end += " " + line.strip()
+            last_header = None
+        elif line.startswith("Path Type:"):
+            kind, last_header = line.partition(":")[2].strip(), None
+            rows, switches = ([] if kind == "max" else None), None
+        else:
+            last_header = None
+            if kind == "max" and "slack (" in line:
+                match = re.fullmatch(r"\s*([+-]?\d+(?:\.\d+)?)\s+slack \((VIOLATED|MET)\)", line)
+                if not match or not start or not end:
+                    raise ValueError("incomplete max path")
+                if match[2] == "VIOLATED":
+                    yield Decimal(match[1]), _point_type(start) + "_to_" + _point_type(end), switches
+                start = end = kind = None
+                rows = None
+            elif rows is not None and line.strip():
+                rows.append(line.strip())
+                if "data arrival time" in line:
+                    switches = _data_layer_switches(rows, start, end)
+                    rows = None
+    if start is not None and kind in (None, "max"):
+        raise ValueError("truncated setup path")
+
+
+def _worst_setup_paths(folder, wns):
+    if _number(wns) is None or wns >= 0:
+        return None
+    for tree in ("run", "retained_artifacts/algorithm"):
+        report = folder / tree / "60_opt/assembly/passive/setup.rpt"
+        for path in (report, report.with_suffix(".rpt.gz")):
+            if not path.is_file():
+                continue
+            opener = gzip.open if path.suffix == ".gz" else open
+            try:
+                with opener(path, "rt", encoding="utf-8") as stream:
+                    paths = list(_reported_setup_paths(stream))
+            except (OSError, EOFError, ValueError, zlib.error):
+                return None
+            if not paths:
+                return None
+            worst = min(slack for slack, _, _ in paths)
+            half_unit = Decimal(1).scaleb(worst.as_tuple().exponent) / 2
+            if abs(worst - Decimal(str(wns))) > half_unit:
+                return None
+            tied = [(kind, switches) for slack, kind, switches in paths if slack == worst]
+            summary = {"reported_slack_ns": str(worst), "matched_paths": len(tied),
+                       "path_types": sorted({kind for kind, _ in tied})}
+            counts = [switches for _, switches in tied if switches is not None]
+            if len(counts) == len(tied):
+                summary["visible_layer_switch_range"] = [min(counts), max(counts)]
+            return summary
+    return None
+
+
+def published_critical_paths(result, evaluation_root):
+    """Read max-path categories whose printed slack agrees with this cell's official WNS in ns."""
+    folders = _published_cells(result, evaluation_root)
+    observed = {}
+    for cell in (result.get("feedback") or {}).get("cells", []):
+        key = _cell_key(cell)
+        if key in folders:
+            report = _worst_setup_paths(folders[key], (cell.get("metrics") or {}).get("final_global_wns_setup_ns"))
+            if report is not None:
+                observed[key] = report
+    return observed
+
+
+def _assignment_file(folder):
+    for subdir in ("run", "retained_artifacts/algorithm"):
+        path = folder / subdir / "20_partition/partition_assignment.csv"
+        for candidate in (path, path.with_suffix(".csv.gz")):
+            if candidate.is_file():
+                return candidate
+    return None
+
+
+def _assignment_rows(path):
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt", encoding="utf-8", newline="") as stream:
+        rows = csv.reader(stream, strict=True)
+        if next(rows, []) != ["inst_name", "die"]:
+            raise ValueError("unexpected assignment columns")
+        for name, die in rows:
+            if not name or die not in ("top", "bottom"):
+                raise ValueError("invalid assignment row")
+            yield name, die == "top"
+
+
+def _assignment_comparisons(parent, candidate, evaluation_root):
+    before = _published_cells(parent, evaluation_root)
+    after = _published_cells(candidate, evaluation_root)
+    results = {}
+    for key in before.keys() & after.keys():
+        old, new = _assignment_file(before[key]), _assignment_file(after[key])
+        if old is None or new is None:
+            continue
+        total = _native_metrics(before[key]).get("instance_count")
+        child_total = _native_metrics(after[key]).get("instance_count")
+        if type(total) is not int or type(child_total) is not int or total <= 0 or total != child_total:
+            continue
+        # Hold only one cell's parent map; popping each child row checks unique, identical coverage.
+        remaining = {}
+        try:
+            for name, top in _assignment_rows(old):
+                if name in remaining or len(remaining) >= total:
+                    raise ValueError("invalid parent instance coverage")
+                remaining[name] = top
+            if len(remaining) != total:
+                continue
+            changed = sum(remaining.pop(name) != top for name, top in _assignment_rows(new))
+        except (OSError, EOFError, csv.Error, ValueError, KeyError):
+            continue
+        if not remaining:
+            results[key] = {"instances": total, "changed_fraction": changed / total,
+                            "changed_fraction_allowing_global_swap": min(changed, total - changed) / total}
+    return results
 
 
 def failure_evidence(cell):
@@ -289,7 +483,7 @@ def load_attempts(log_path):
             for request_id, ids in parents.items() if len(ids) == 1}
 
 
-def comparison_for_prompt(result, parent_id, receipts_by_candidate, schedule):
+def comparison_for_prompt(result, parent_id, receipts_by_candidate, schedule, evaluation_root=None, assignment_cache=None):
     """Attach a comparison to a receipt using its own parent, even after a restart."""
     if parent_id is None:
         return None
@@ -305,4 +499,12 @@ def comparison_for_prompt(result, parent_id, receipts_by_candidate, schedule):
               "fewer_cuts_lower_score")
     comparison["cells"] = [{field: row[field] for field in fields}
                            for row in comparison["cells"] if row["score_delta"] is not None]
+    if comparison["complete"] and parent["status"] == "succeeded" and assignment_cache is not None:
+        pair = parent["request_id"], result["request_id"]
+        if pair not in assignment_cache:
+            assignment_cache[pair] = _assignment_comparisons(parent, result, evaluation_root)
+        for row in comparison["cells"]:
+            movement = assignment_cache[pair].get(_cell_key(row))
+            if movement is not None:
+                row["assignment_vs_parent"] = movement
     return comparison

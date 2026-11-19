@@ -7,20 +7,20 @@ reads is the official number returned for a submitted candidate.
 
 import ast
 from math import isfinite
-from statistics import mean
+from statistics import mean, median
 
 
 COMPONENTS = ("loss", "decoder")
 OTHER_COMPONENT = {"loss": "decoder", "decoder": "loss"}
-# A decoder edit always reaches the discrete assignment and can be probed before
-# submission, so it opens the run. opening.txt can restore the other order.
+# Default order for the two single-component trials.
 OPENING = ("decoder_only", "loss_only")
 UNCHANGED_FUNCTION = {"loss_only": 1, "decoder_only": 0}
 REFERENCE_HELPER = "reference_global_two_way"
 VERIFIED = ("inert", "marginal", "effective")
 
 SAME_TIMING_NS = 1e-6       # WNS and TNS both within this of the parent: same physical result
-MARGINAL_FRACTION = 1e-3    # under 0.1% of instances reassigned: timing movement is not attributable
+SAME_SCORE_POINTS = 1e-9    # Ignore floating-point residue in cell scores and their aggregate.
+MARGINAL_FRACTION = 1e-3    # threshold for the search policy's marginal category
 INERT_ESCALATION = 10.0     # an inert mechanism may return only if a coefficient grows this much
 FAMILY_LIMIT = 2            # official evaluations spent on one mechanism family before it is exhausted
 SHELF_EVALUATIONS = 2       # reviewed-but-unmeasured opening alternatives that get their own evaluation
@@ -98,21 +98,53 @@ def cell_key(cell):
     return cell["case"], str(cell["seed"])
 
 
-def matrix_complete(summary, schedule):
-    """True only when every scheduled case and seed carries one verified official score.
-
-    A verified physical failure keeps its floored official score and still counts.
-    A cell that did not complete, or that stopped for an infrastructure reason,
-    leaves the matrix incomplete whatever aggregate the reply reports.
-    """
+def _has_scheduled_scores(summary, schedule):
     if summary.get("status") != "succeeded" or not _finite(summary.get("score")):
         return False
     cells = summary.get("cells") or []
     keys = [cell_key(cell) for cell in cells]
     if not schedule or len(set(keys)) != len(keys) or set(keys) != {cell_key(cell) for cell in schedule}:
         return False
-    return all(_finite(cell.get("score")) and cell.get("status") != "not_completed"
-               and (cell.get("failure") or {}).get("kind") != "runtime_environment" for cell in cells)
+    return all(_finite(cell.get("score")) for cell in cells)
+
+
+def matrix_complete(summary, schedule):
+    """For search, an infrastructure failure leaves the mechanism unverified."""
+    return _has_scheduled_scores(summary, schedule) and all(
+        cell.get("status") != "not_completed" and (cell.get("failure") or {}).get("kind") != "runtime_environment"
+        for cell in summary["cells"])
+
+
+def officially_scored(summary, schedule):
+    """The successful bridge receipt carries the organizer's score, including physical penalties."""
+    return _has_scheduled_scores(summary, schedule) and all(
+        (cell.get("status") == "succeeded" and cell["score"] >= -100)
+        or (cell.get("status") == "penalized" and cell.get("valid") is False and cell["score"] == -100)
+        for cell in summary["cells"])
+
+
+def _has_measured_partition_effect(comparison, cells):
+    """Check for a changed assignment and timing in the direction of the official net score change."""
+    net_delta = comparison.get("official_score_delta")
+    if not comparison.get("complete") or not _finite(net_delta) or abs(net_delta) <= SAME_SCORE_POINTS:
+        return False
+    direction = 1 if net_delta > 0 else -1
+    by_key = {cell_key(cell): cell for cell in cells}
+    for pair in comparison["cells"]:
+        score_delta = pair["score_delta"]
+        slacks = (pair["wns_slack_delta_ns"], pair["tns_slack_delta_ns"])
+        if (not _finite(score_delta) or direction * score_delta <= SAME_SCORE_POINTS
+                or not all(_finite(delta) for delta in slacks)
+                or not any(direction * delta >= SAME_TIMING_NS for delta in slacks)):
+            continue
+        cell = by_key[cell_key(pair)]
+        if comparison["parent_source"] == "published_initial_reference":
+            changed = (cell.get("partition_change_vs_initial") or {}).get("partition_assignment_changed_count")
+        else:
+            changed = (pair.get("assignment_vs_parent") or {}).get("changed_fraction")
+        if _finite(changed) and changed > 0:
+            return True
+    return False
 
 
 def classify(summary, schedule):
@@ -129,15 +161,16 @@ def classify(summary, schedule):
         return ("environment_failure" if environment else "unverified"), None
 
     comparison = summary.get("parent_comparison") or {}
+    if _has_measured_partition_effect(comparison, cells):
+        return "effective", None
     pairs = comparison.get("cells") or []
     same_timing = sum(all(pair.get(metric) is not None and abs(pair[metric]) < SAME_TIMING_NS
                           for metric in ("wns_slack_delta_ns", "tns_slack_delta_ns")) for pair in pairs)
-    if pairs and same_timing > len(pairs) // 2:
+    if same_timing > len(cells) // 2:
         return "inert", None
     if comparison.get("parent_source") == "published_initial_reference":
         partition = summary.get("partition_changes_vs_initial") or {}
-        reported = partition.get("reported_cells", 0)
-        if reported and partition.get("identical_assignments", 0) > reported // 2:
+        if partition.get("identical_assignments", 0) > len(cells) // 2:
             return "inert", None
         fractions = [fraction for fraction in (
             (cell.get("partition_change_vs_initial") or {}).get("partition_assignment_changed_fraction")
@@ -191,15 +224,61 @@ def rank(trial):
     return trial["score"], trial["tns"] if trial["tns"] is not None else float("-inf")
 
 
-def final_choice(trials, start_score):
-    """Pick the best candidate among those with a complete verified official matrix."""
-    eligible = [trial for trial in trials if trial["complete"]]
+def alternative_on_weakest_case(parent, trials, sources, component=None):
+    """Show one measured single-function alternative for a parent's lowest-scoring case."""
+    if not parent or not parent["complete"] or not parent["key"]:
+        return None
+    scores = parent["cell_scores"]
+    by_case = {}
+    for key in scores:
+        by_case.setdefault(key[0], []).append(key)
+    weakest = min(by_case, key=lambda case: mean(scores[k] for k in by_case[case]))
+    keys = by_case[weakest]
+    best = None
+    for trial in trials:
+        if not trial["complete"] or not trial["key"] or trial["request_id"] not in sources:
+            continue
+        changed = [i for i, (old, new) in enumerate(zip(parent["key"], trial["key"])) if old != new]
+        if len(changed) != 1 or (component and COMPONENTS[changed[0]] != component):
+            continue
+        other = trial["cell_scores"]
+        if scores.keys() != other.keys():
+            continue
+        deltas = [other[k] - scores[k] for k in keys]
+        if mean(deltas) <= 0 or sum(delta > 0 for delta in deltas) <= len(keys) // 2:
+            continue
+        priority = (mean(deltas), rank(trial))
+        if best is None or priority > best[0]:
+            best = (priority, trial, changed[0])
+    if best is None:
+        return None
+    _, trial, index = best
+    source = sources[trial["request_id"]]
+    other = trial["cell_scores"]
+    return {
+        "candidate_id": trial["candidate_id"], "official_training_score": trial["score"],
+        "focus_case": weakest, "changed_function": COMPONENTS[index],
+        "paired_score_deltas_on_focus_case": {k[1]: other[k] - scores[k] for k in keys},
+        "mean_score_delta_by_case": {case: mean(other[k] - scores[k] for k in group)
+                                     for case, group in by_case.items()},
+        "function_source": ast.get_source_segment(source, ast.parse(source).body[index]),
+    }
+
+
+def final_choice(trials, start_score, *, scored_requests=None):
+    """Rank verified search trials, or the officially scored requests at the end of the run."""
+    if scored_requests is None:
+        eligible = [trial for trial in trials if trial["complete"]]
+        rule = "highest official score among complete verified training matrices"
+    else:
+        eligible = [trial for trial in trials if trial["request_id"] in scored_requests]
+        rule = "highest official score among complete scored training matrices"
     best = None
     for trial in eligible:  # the earliest candidate wins an exact tie
         if best is None or rank(trial) > rank(best):
             best = trial
     return best, {
-        "rule": "highest official score among complete verified training matrices",
+        "rule": rule,
         "eligible_candidates": len(eligible), "evaluated_candidates": len(trials),
         "published_start_score": start_score,
         "beats_published_start": bool(best and (start_score is None or best["score"] > start_score)),
@@ -239,6 +318,25 @@ def _exhausted_families(trials):
         if trial["family"] and trial["outcome"] != "environment_failure" and not trial["retry_of"]:
             counts[trial["family"]] = counts.get(trial["family"], 0) + 1
     return sorted(family for family, count in counts.items() if count >= FAMILY_LIMIT)
+
+
+def _alternative_parent(verified, incumbent, start_score):
+    """Find a parent that beats the leader on a majority of seeds in a majority of cases."""
+    leader = incumbent["cell_scores"]
+    choices = []
+    for trial in verified:
+        scores = trial["cell_scores"]
+        if (trial["outcome"] != "effective" or not trial["key"] or scores.keys() != leader.keys()
+                or trial["candidate_id"] == incumbent["candidate_id"] or trial["score"] <= start_score):
+            continue
+        differences = {}
+        for (case, seed), score in scores.items():
+            differences.setdefault(case, []).append(score - leader[case, seed])
+        winning_cases = [median(deltas) for deltas in differences.values()
+                         if sum(delta > 0 for delta in deltas) > len(deltas) // 2]
+        if len(winning_cases) > len(differences) // 2:
+            choices.append(((len(winning_cases), median(winning_cases), rank(trial)), trial))
+    return max(choices, key=lambda pair: pair[0])[1] if choices else None
 
 
 def _concentrated_regression(trial):
@@ -295,7 +393,16 @@ def next_step(trials, start_score, start_cell_scores, opening=OPENING, evaluatio
         if intent not in opened:
             return propose(None, intent, "opening_control")
 
-    # 3. Measure the opening alternatives too. A text review ranked them without evidence, and each is
+    # Combine two measured gains before investing another evaluation in an unmeasured opening idea.
+    pair = _recombination(trials, start_score, considered)
+    if pair:
+        loss, decoder, key = pair
+        return {"action": "recombine", "loss": loss["request_id"], "decoder": decoder["request_id"], "key": key,
+                "parent": max((loss, decoder), key=rank)["request_id"], "intent": "recombine",
+                "decision": {"reason": "combine_verified_gains", "loss_candidate_id": loss["candidate_id"],
+                             "decoder_candidate_id": decoder["candidate_id"]}}
+
+    # Measure the opening alternatives too. A text review ranked them without evidence, and each is
     #    one more single-function comparison against the same published start. Decoder edits go first
     #    because they always reach the assignment.
     if sum(trial["from_shelf"] for trial in informative) < SHELF_EVALUATIONS:
@@ -305,18 +412,16 @@ def next_step(trials, start_score, start_cell_scores, opening=OPENING, evaluatio
             return {"action": "shelved", "index": min(waiting)[1],
                     "decision": {"reason": "opening_alternative_control"}}
 
-    # 4. Two verified single-function gains over the start: measure their exact combination.
-    pair = _recombination(trials, start_score, considered)
-    if pair:
-        loss, decoder, key = pair
-        return {"action": "recombine", "loss": loss["request_id"], "decoder": decoder["request_id"], "key": key,
-                "parent": max((loss, decoder), key=rank)["request_id"], "intent": "recombine",
-                "decision": {"reason": "combine_verified_gains", "loss_candidate_id": loss["candidate_id"],
-                             "decoder_candidate_id": decoder["candidate_id"]}}
-
     last = informative[-1]
     base = incumbent if ahead else None
     exhausted = _exhausted_families(trials)
+
+    # Try a second lineage with one subsequent evaluation still available to build on a new winner.
+    if evaluations_remaining == 2 and ahead and start_score is not None:
+        alternative = _alternative_parent(verified, incumbent, start_score)
+        if alternative:
+            return propose(alternative, "refine", "refine_parent_winning_more_paired_cases",
+                           candidate_id=alternative["candidate_id"])
 
     # 5. The last edit never reached the assignment: change the mechanism, not its coefficient.
     if last["outcome"] in ("inert", "marginal"):

@@ -14,13 +14,17 @@ self-consistent: the tests check how the harness spends evaluations, not which
 algorithm is physically better.
 """
 
+import gzip
 import json
 import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import replay_support as support
@@ -186,6 +190,39 @@ class ReplayTenEvaluations(unittest.TestCase):
         self.assertLess(self.bridge.model_calls, self.bridge.model_limit, self.trace)
 
 
+class InitialPrompt(unittest.TestCase):
+    def test_experience_only_in_first_request_even_after_interruption(self):
+        with tempfile.TemporaryDirectory() as workdir:
+            agent, folder = support.load_agent(AGENT_DIR, workdir)
+            prompt = (folder / "prompt.md").read_text(encoding="utf-8")
+            self.assertEqual(prompt.count(agent.EXPERIENCE_HEADING), 1)
+            declaration = prompt[prompt.index(agent.EXPERIENCE_HEADING):].strip()
+            units = sum(2 if word.isascii() and word.isalpha() else 1
+                        for word in re.findall(r"[A-Za-z]+|[0-9]+|[\u3400-\u9fff]", declaration))
+            self.assertLessEqual(units, 200)
+            prompts = []
+            proposer = StubbornProposer([], ["flip", "orient_axis"])
+
+            def observe(system, request):
+                prompts.append(system + "\n" + json.dumps(request, ensure_ascii=False))
+                if len(prompts) == 1:
+                    raise InterruptedError("stop before first evaluation")
+                return proposer(system, request)
+
+            bridge = support.MockBridge(workdir, world, observe, evaluation_limit=1)
+            with self.assertRaises(InterruptedError):
+                agent.Agent().run(bridge)
+            self.assertEqual(bridge.evaluations(), [])
+            agent.Agent().run(bridge)
+            self.assertIn(declaration, prompts[0])
+            self.assertGreaterEqual(len(prompts), 4)
+            self.assertTrue(any(text.startswith(agent.OPENING_ALTERNATIVE) for text in prompts))
+            self.assertTrue(any(text.startswith(agent.OPENING_REVIEW) for text in prompts))
+            for text in prompts[1:]:
+                self.assertNotIn(agent.EXPERIENCE_HEADING, text)
+                self.assertNotIn(declaration.splitlines()[-1], text)
+
+
 class IncompleteMatrix(unittest.TestCase):
     def test_a_candidate_with_an_unfinished_cell_is_never_the_final_answer(self):
         def scripted(source, attempt):
@@ -200,14 +237,162 @@ class IncompleteMatrix(unittest.TestCase):
         self.assertTrue(bridge.complete(by_id[returned]), "\n" + trace(bridge))
 
 
+class PartitionFeedback(unittest.TestCase):
+    def test_parent_assignment_pairing_requires_complete_unique_instance_coverage(self):
+        with tempfile.TemporaryDirectory() as workdir:
+            agent, _ = support.load_agent(AGENT_DIR, workdir)
+            root = Path(workdir) / "evaluations"
+            schedule = [{"case": "chip", "seed": "1"}]
+            cell = {**schedule[0], "status": "succeeded", "score": 0.0}
+
+            def receipt(tag):
+                return {"request_id": tag, "candidate_id": "id-" + tag, "status": "succeeded",
+                        "artifacts_dir": str(root / tag), "feedback": {"cells": [cell], "score": 0.0}}
+
+            parent, child = receipt("parent"), receipt("child")
+            parents = {parent["candidate_id"]: parent}
+            paths = []
+            for record, tree, name in ((parent, "run", "partition_assignment.csv"),
+                                       (child, "retained_artifacts/algorithm", "partition_assignment.csv.gz")):
+                folder = Path(record["artifacts_dir"]) / "cells/chip/1/result"
+                path = folder / tree / "20_partition" / name
+                path.parent.mkdir(parents=True)
+                (folder / "evaluation_result.json").write_text('{"metrics":{"instance_count":4}}', encoding="utf-8")
+                paths.append(path)
+
+            header = "inst_name,die\n"
+            paths[0].write_text(header + "a,top\nb,top\nc,bottom\nd,bottom\n", encoding="utf-8")
+
+            def movement(child_rows, cache):
+                with gzip.open(paths[1], "wt", encoding="utf-8") as out:
+                    out.write(header + child_rows)
+                result = agent.comparison_for_prompt(child, parent["candidate_id"], parents, schedule, root, cache)
+                return result["cells"][0].get("assignment_vs_parent")
+
+            cache = {}
+            valid = movement("d,bottom\nc,top\nb,bottom\na,bottom\n", cache)
+            self.assertEqual(valid, {"instances": 4, "changed_fraction": 0.75,
+                                     "changed_fraction_allowing_global_swap": 0.25})
+            self.assertEqual(movement("", cache), valid)  # published pairs are immutable and read once
+            self.assertIsNone(movement("a,top\na,top\nc,top\nd,bottom\n", {}))
+            self.assertIsNone(movement("a,top\nb,top\nx,top\nd,bottom\n", {}))
+            paths[0].write_text(header + "a,top\nb,top\n", encoding="utf-8")
+            self.assertIsNone(movement("a,top\nb,bottom\n", {}))  # same two missing on both sides
+
+    def test_next_proposal_receives_native_cut_measurements_without_an_assignment_reference(self):
+        with tempfile.TemporaryDirectory() as workdir:
+            agent, _ = support.load_agent(AGENT_DIR, workdir)
+            requests = []
+            proposer = StubbornProposer([("hard_negative", 0.25)], ["flip"])
+
+            def observe(system, request):
+                requests.append(request)
+                return proposer(system, request)
+
+            bridge = support.MockBridge(workdir, world, observe, evaluation_limit=1)
+            agent.Agent().run(bridge)
+            receipt = bridge.evaluations()[0]
+            cells = receipt["feedback"]["cells"]
+            stage_fields = {"tp_gnn_balanced_timing_weighted_cut": 120.0,
+                            "tp_gnn_feasible_timing_weighted_cut": 112.0,
+                            "tp_gnn_repair_moved_area_fraction": 0.0}
+            for index, cell in enumerate(cells[:2]):
+                path = (Path(receipt["artifacts_dir"]) / "cells" / cell["case"] / str(cell["seed"])
+                        / "result/evaluation_result.json")
+                if index == 0:
+                    with gzip.open(path.with_suffix(".json.gz"), "wt", encoding="utf-8") as stream:
+                        json.dump({"metrics": stage_fields}, stream)
+                    path.unlink()
+                else:
+                    native = json.loads(path.read_text(encoding="utf-8"))
+                    native["metrics"].update(tp_gnn_balanced_timing_weighted_cut=False,
+                                             tp_gnn_feasible_timing_weighted_cut=102.0)
+                    path.write_text(json.dumps(native), encoding="utf-8")
+
+            requests.clear()
+            bridge.evaluation_limit = 2
+            agent.Agent().run(bridge)
+            previous = next(r["incumbent_feedback"] for r in requests if r.get("incumbent_feedback"))
+            first, second = previous["cells"][:2]
+            self.assertEqual(first["partition_stages"], stage_fields)
+            self.assertNotIn("partition_change_vs_initial", first)
+            self.assertNotIn("tp_gnn_balanced_timing_weighted_cut", second["partition_stages"])
+            self.assertEqual(second["partition_stages"]["tp_gnn_feasible_timing_weighted_cut"], 102.0)
+            self.assertIn("partition_change_vs_initial", second)
+            self.assertEqual(previous["partition_changes_vs_initial"]["reported_cells"], len(cells) - 1)
+
+
 @unittest.skipUnless(support.importlib.util.find_spec("numpy"), "the decoder probe needs NumPy")
 class DecoderContract(unittest.TestCase):
-    def test_broken_or_equivalent_decoders_never_reach_the_official_evaluator(self):
-        bridge, _, events = run([("hard_negative", 0.25)], ["float_labels", "noop", "lopsided", "flip"],
+    def test_equivalence_requires_unequal_areas_and_clustered_embeddings(self):
+        with patch.object(sys, "path", [str(AGENT_DIR), *sys.path]):
+            import decoder_probe as probe
+        parent = support.INITIAL_PROGRAM
+        before_return = parent.removesuffix("    return labels\n")
+        alternative = """        order = np.argsort(embeddings[:, 0], kind='stable')
+        chosen = np.cumsum(node_areas[order]) <= balance_target * np.sum(node_areas)
+        return chosen[np.argsort(order)].astype(np.int64)
+    return labels
+"""
+        for profile, condition in (
+            ("unequal_areas", "np.any(node_areas > 2 * np.mean(node_areas))"),
+            ("clustered", "np.any(np.mean(np.square(embeddings), axis=0) > 2 / embeddings.shape[1])"),
+        ):
+            with self.subTest(profile=profile):
+                source = before_return + "    if " + condition + ":\n" + alternative
+                candidate, original = probe._decoder(source), probe._decoder(parent)
+                for seed in probe.PROBE_SEEDS:
+                    args = (*probe._probe_inputs(seed), seed, 50, 0.5)
+                    self.assertTrue(probe.np.array_equal(candidate(*args), original(*args)))
+                embeddings, areas = probe._probe_inputs(0, profile)
+                args = embeddings, areas, 0, 50, 0.5
+                labels = candidate(*args)
+                self.assertIsNone(probe._contract_issue(labels, areas))
+                self.assertAlmostEqual(areas[labels == 1].sum() / areas.sum(), 0.5, delta=0.03)
+                changed = (labels != original(*args)).sum()
+                self.assertGreater(min(changed, len(labels) - changed), 0)
+                self.assertIsNone(probe.probe_decoder(source, parent))
+        self.assertIn("matched the parent's labels", probe.probe_decoder(support.program(decoder="noop"), parent))
+
+    def test_extra_probes_are_conditional_and_both_check_the_contract(self):
+        with patch.object(sys, "path", [str(AGENT_DIR), *sys.path]):
+            import decoder_probe as probe
+        parent = support.INITIAL_PROGRAM
+        with patch.object(probe, "_probe_inputs", wraps=probe._probe_inputs) as inputs:
+            self.assertIsNone(probe.probe_decoder(support.program(decoder="flip"), parent))
+            self.assertEqual([call.args for call in inputs.call_args_list], [(seed, "random") for seed in range(6)])
+        source = parent.removesuffix("    return labels\n") + """    if np.any(node_areas > 2 * np.mean(node_areas)):
+        return 1 - labels
+    if np.any(np.mean(np.square(embeddings), axis=0) > 2 / embeddings.shape[1]):
+        return labels * 1.0
+    return labels
+"""
+        self.assertIn("labels must be integers", probe.probe_decoder(source, parent))
+
+    def test_archived_decoder_runs_on_cold_numpy(self):
+        archive = Path(__file__).resolve().parents[3] / "candidates"
+        script = """
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import decoder_probe as probe
+archive = Path(sys.argv[2])
+source = (archive / 'claude-round-04/program.py').read_text(encoding='utf-8')
+parent = (archive / 'claude-round-02/program.py').read_text(encoding='utf-8')
+embeddings, areas = probe._probe_inputs(0)
+labels = probe._decoder(source)(embeddings, areas, 0, 50, 0.5)
+assert probe._contract_issue(labels, areas) is None
+issue = probe.probe_decoder(source, parent)
+assert issue is None, issue
+"""
+        subprocess.run([sys.executable, "-B", "-c", script, str(AGENT_DIR), str(archive)], check=True)
+
+    def test_nonempty_skewed_decoder_reaches_evaluation_after_invalid_proposals(self):
+        bridge, _, events = run([("hard_negative", 0.25)], ["float_labels", "noop", "empty", "skewed"],
                                 evaluation_limit=2)
         submitted = {identify(result["source"])[2] for result in bridge.evaluations()}
-        self.assertFalse(submitted & {"float_labels", "noop", "lopsided"}, "\n" + trace(bridge))
-        self.assertIn("flip", submitted, "\n" + trace(bridge))
+        self.assertFalse(submitted & {"float_labels", "noop", "empty"}, "\n" + trace(bridge))
+        self.assertIn("skewed", submitted, "\n" + trace(bridge))
 
 
 if __name__ == "__main__":

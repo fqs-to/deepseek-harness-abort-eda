@@ -19,11 +19,11 @@ from contest2.model_pricing import MODEL_ID
 from contest2.scoring import reference_table, score_metrics
 from local_tasks.tp_gnn_local_task_definitions import DECODER_TASK, validate_program
 from decoder_probe import probe_decoder
-from paired_feedback import (comparison_for_prompt, failure_evidence, load_attempts,
-                             published_partition_changes, related_experiment, result_failure)
+from paired_feedback import (comparison_for_prompt, failure_evidence, load_attempts, published_critical_paths,
+                             published_partition_diagnostics, related_experiment, result_failure)
 from search_policy import (COMPONENTS, INERT_ESCALATION, OPENING, OTHER_COMPONENT, UNCHANGED_FUNCTION,
-                           cell_key, describe_trial, final_choice, function_keys, mechanism_family,
-                           next_step, rescale_ratio)
+                           alternative_on_weakest_case, cell_key, describe_trial, final_choice,
+                           function_keys, mechanism_family, next_step, officially_scored, rescale_ratio)
 
 
 EXPERIENCE_HEADING = "## Offline Expert Knowledge"
@@ -111,15 +111,13 @@ def check_proposal(source, parent_source, initial, step, relaxed, submitted, ine
     structure = function_keys(source, ignore_numbers=True)
     changed = [index for index in (0, 1) if key[index] != parent_key[index]]
     for index, origin, inert_source in inert:
-        # The same edit of the same function, retuned by less than an order of magnitude, would
-        # reproduce its parent's assignment again.
+        # The search policy reserves evaluations for distinct proposals after a repeated outcome.
         if (changed == [index] and parent_key[index] == origin
                 and function_keys(inert_source, ignore_numbers=True)[index] == structure[index]
                 and rescale_ratio(source, inert_source, index) < INERT_ESCALATION):
             raise ValueError(
-                f"This {COMPONENTS[index]} edit only retunes coefficients of a candidate whose official "
-                "evaluation left the die assignment unchanged. Change the mechanism, or make it at least "
-                f"{INERT_ESCALATION:g} times stronger.")
+                f"This {COMPONENTS[index]} edit falls inside the search policy's coefficient-only "
+                "repeat filter. Propose a structurally distinct edit.")
     required = step.get("required_component")
     if required and key[COMPONENTS.index(required)] == parent_key[COMPONENTS.index(required)]:
         raise ValueError(f"This step must change the {required} function relative to the parent")
@@ -156,14 +154,6 @@ def review_opening(context, choices, review_inputs):
     if pick and pick[1].upper() in choices:
         return pick[1].upper(), ""
     raise ValueError("Opening review did not select an available proposal or give a specific issue")
-
-
-def score_key(result):
-    feedback = result["feedback"]
-    cells = feedback["cells"]
-    tns = [cell.get("metrics", {}).get("tns_deficit_improvement") for cell in cells]
-    complete_tns = bool(tns) and all(value is not None for value in tns)
-    return feedback["score"], mean(tns) if complete_tns else float("-inf")
 
 
 def save_best(folder, result):
@@ -319,7 +309,8 @@ class Agent:
         attempts = load_attempts(folder / "search.jsonl")
         shelf.extend(load_shelf(folder / "search.jsonl"))
         receipts_by_candidate = {}
-        partition_cache = {}
+        diagnostics_cache = {}
+        assignment_cache = {}
         evaluation_root = context.files.get("evaluations", "/workspace/evaluations")
         initial_reference = published_initial_reference(context)
         start_score, start_cells = None, {}
@@ -331,24 +322,30 @@ class Agent:
         def summarize_for_prompt(result):
             summary = summarize(result)
             request_id = result["request_id"]
-            if request_id not in partition_cache:
-                partition_cache[request_id] = published_partition_changes(result, evaluation_root)
-            partition = partition_cache[request_id]
+            if request_id not in diagnostics_cache:
+                partition, stages = published_partition_diagnostics(result, evaluation_root)
+                paths = published_critical_paths(result, evaluation_root)
+                diagnostics_cache[request_id] = partition, stages, paths
+            partition, stages, paths = diagnostics_cache[request_id]
             if partition:
                 summary["partition_changes_vs_initial"] = {
                     "reported_cells": len(partition),
                     "identical_assignments": sum(row["partition_assignment_changed_count"] == 0
                                                  for row in partition.values()),
                 }
-                for cell in summary["cells"]:
-                    change = partition.get((cell["case"], str(cell["seed"])))
-                    if change is not None:
-                        cell["partition_change_vs_initial"] = change
+            for cell in summary["cells"]:
+                key = cell_key(cell)
+                if key in partition:
+                    cell["partition_change_vs_initial"] = partition[key]
+                if key in stages:
+                    cell["partition_stages"] = stages[key]
+                if key in paths:
+                    cell["worst_setup_paths"] = paths[key]
             attempt = attempts.get(result["request_id"], {})
             if attempt:
                 summary["attempt"] = attempt
             comparison = comparison_for_prompt(result, attempt.get("parent_id"), receipts_by_candidate,
-                                               context.evaluation_cells)
+                                               context.evaluation_cells, evaluation_root, assignment_cache)
             if comparison is not None:
                 summary["parent_comparison"] = comparison
             return summary
@@ -521,6 +518,12 @@ class Agent:
                 "related_experiment": related_experiment(focus, archive, displayed),
                 "previous_generation_issue": issue,
             }
+            if parent and intent in ("repair", "refine", "diversify"):
+                parent_trial = next(t for t in trials if t["request_id"] == parent["request_id"])
+                alternative = alternative_on_weakest_case(
+                    parent_trial, trials, sources, step.get("component") or step.get("required_component"))
+                if alternative:
+                    request["measured_alternative"] = alternative
             system_prompt = instructions.rstrip() + "\n\n" + interface
             if initial_experience_pending:
                 initial_experience_pending = False
@@ -572,6 +575,10 @@ class Agent:
                 verdict, reason = "A", ""
                 if context.status()["model_dispatch_allowed"]:
                     try:
+                        from opening_gradients import opening_gradients
+                        gradients = opening_gradients(intent, context, parent_source, choices)
+                        if gradients is not None:
+                            review_inputs["initial_batch_gradients"] = gradients
                         verdict, reason = review_opening(context, choices, review_inputs)
                     except (AgentAPIError, ValueError) as error:
                         reason = str(error)[:400]
@@ -594,23 +601,19 @@ class Agent:
             issue = None
 
         archive, trials = review()
-        chosen, selection = final_choice(trials, start_score)
+        scored = {summary["request_id"] for summary in archive if officially_scored(summary, schedule)}
+        chosen, selection = final_choice(trials, start_score, scored_requests=scored)
         if chosen is None:
-            # No complete verified matrix exists. Report the least-bad official reply rather than nothing.
-            fallback = [result for result in history if result["status"] == "succeeded"
-                        and isinstance((result.get("feedback") or {}).get("score"), (int, float))]
-            if RETURN_START_WHEN_UNBEATEN or not fallback:
-                if not RETURN_START_WHEN_UNBEATEN:
-                    raise RuntimeError("No candidate completed an official training evaluation"
-                                       + (f": {issue}" if issue else ""))
-                write_event(folder, "selected_published_start", selection=selection)
-                return context.baseline_candidate
-            best = max(fallback, key=score_key)
-            write_event(folder, "selected_without_complete_matrix", selection=selection, **summarize(best))
-            return best["candidate_id"]
+            if not RETURN_START_WHEN_UNBEATEN:
+                raise RuntimeError("No candidate completed an official training evaluation"
+                                   + (f": {issue}" if issue else ""))
+            write_event(folder, "selected_published_start", selection=selection)
+            return context.baseline_candidate
         if RETURN_START_WHEN_UNBEATEN and not selection["beats_published_start"]:
             write_event(folder, "selected_published_start", selection=selection)
             return context.baseline_candidate
         best = next(result for result in history if result["request_id"] == chosen["request_id"])
+        if chosen["request_id"] != saved[0] and chosen["request_id"] in sources:
+            save_best(folder, {"source": sources[chosen["request_id"]]})
         write_event(folder, "selected", selection=selection, **summarize(best))
         return best["candidate_id"]
