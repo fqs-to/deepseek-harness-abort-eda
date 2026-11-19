@@ -68,7 +68,8 @@ def reference_global_two_way(embeddings, node_areas, seed, max_iterations, balan
 def _probe_inputs(seed, profile="random"):
     """Generate unit-length embeddings and positive group areas for an interface check."""
     generator = np.random.default_rng(seed)
-    count, width = 256, 16
+    # Group count is synthetic; the frozen tp_gnn_fast.json recipe fixes the actual embedding width.
+    count, width = 256, 128
     embeddings = generator.standard_normal((count, width))
     if profile == "clustered":
         # Three overlapping directions in a plane, with independent noise in every dimension.

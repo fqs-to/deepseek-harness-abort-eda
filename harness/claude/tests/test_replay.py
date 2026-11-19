@@ -324,6 +324,20 @@ class PartitionFeedback(unittest.TestCase):
 
 @unittest.skipUnless(support.importlib.util.find_spec("numpy"), "the decoder probe needs NumPy")
 class DecoderContract(unittest.TestCase):
+    def test_decoder_using_an_upper_embedding_coordinate_is_admitted(self):
+        with patch.object(sys, "path", [str(AGENT_DIR), *sys.path]):
+            import decoder_probe as probe
+        parent = support.INITIAL_PROGRAM
+        loss = parent.split(support.DECODER_SIGNATURE)[0]
+        source = loss + support.DECODER_SIGNATURE + (
+            "    order = np.argsort(embeddings[:, 32])\n"
+            "    upper = np.cumsum(node_areas[order]) <= balance_target * np.sum(node_areas)\n"
+            "    return upper[np.argsort(order)].astype(np.int64)\n")
+        for profile in ("random", "unequal_areas", "clustered"):
+            embeddings, _ = probe._probe_inputs(1001, profile)
+            self.assertEqual(embeddings.shape[1], 128)
+        self.assertIsNone(probe.probe_decoder(source, parent))
+
     def test_agreement_on_synthetic_inputs_does_not_reject_a_valid_decoder(self):
         with patch.object(sys, "path", [str(AGENT_DIR), *sys.path]):
             import decoder_probe as probe
