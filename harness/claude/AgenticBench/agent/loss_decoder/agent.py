@@ -28,9 +28,10 @@ from search_policy import (COMPONENTS, INERT_ESCALATION, OPENING, OTHER_COMPONEN
 
 EXPERIENCE_HEADING = "## Offline Expert Knowledge"
 # Consecutive rejected proposals in one step before the diversity constraints are dropped and the
-# other function is requested instead. After twice as many, any valid untested program is accepted.
-# After four times as many, the step stops asking the model so the model budget is not drained.
+# other function is requested instead. After four times as many, use any ready alternative first,
+# then release the paired search direction and let the model choose either function.
 RELAX_AFTER = 3
+REPEATED_RECOVERY_LIMIT = 8
 # Consecutive model gateway errors, with exponential backoff, before the model is treated as unavailable.
 MODEL_ERROR_LIMIT = 5
 # Returning context.baseline_candidate when no verified candidate beats the published start needs
@@ -94,14 +95,21 @@ def inert_edits(trials, sources, initial, baseline_id):
     return edits
 
 
-def check_proposal(source, parent_source, initial, step, relaxed, submitted, inert, structures=frozenset()):
+def evaluation_id(key, retry_of=None):
+    identity = repr(key) + (retry_of or "")
+    prefix = "r-" if retry_of else "e-"
+    return prefix + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:60]
+
+
+def check_proposal(source, parent_source, initial, step, relaxed, submitted, inert, structures=frozenset(),
+                   recorded_ids=()):
     """Reject a proposal that cannot teach anything, before it costs an official evaluation.
 
     `submitted` holds exact programs with an official record, `inert` the edits that never reached
     the assignment, and `structures` the coefficient-blind shapes of every evaluated program.
     """
     key, parent_key = function_keys(source), function_keys(parent_source)
-    if key in submitted:
+    if key in submitted or evaluation_id(key) in recorded_ids:
         raise ValueError("The response repeats a program that already has an official evaluation record")
     unchanged = UNCHANGED_FUNCTION.get(step["intent"])
     if step["intent"] == "repair" and step.get("component"):
@@ -239,23 +247,64 @@ def ledger(trials):
             for trial in trials]
 
 
-def load_shelf(log_path):
-    """Proposals set aside by an opening review in an earlier process of this run."""
+def search_events(log_path):
     try:
         lines = log_path.read_bytes().splitlines()
     except FileNotFoundError:
-        return []
-    entries = []
+        return
     for line in lines:
         try:
             event = json.loads(line)
-            if event.get("event") == "shelved":
+        except ValueError:
+            continue  # A stopped process can leave a truncated line.
+        if isinstance(event, dict):
+            yield event
+
+
+def load_shelf(log_path):
+    """Proposals set aside by an opening review in an earlier process of this run."""
+    entries = []
+    revised_opening, rows_left = None, 0
+    for event in search_events(log_path):
+        kind = event.get("event")
+        opening = (event.get("parent_id"), event.get("search_intent"))
+        if kind == "shelved":
+            # Older runs immediately logged every choice after a REVISE verdict.
+            if rows_left and opening == revised_opening:
+                rows_left -= 1
+                continue
+            rows_left = 0
+            try:
                 entries.append({"source": event["source"], "key": function_keys(event["source"]),
                                 "parent_id": event["parent_id"], "intent": event["search_intent"],
                                 "changed": event["changed_components"]})
-        except (ValueError, KeyError, AttributeError, SyntaxError):
-            continue  # A stopped process can leave a truncated line.
+            except (ValueError, KeyError, TypeError, AttributeError, SyntaxError):
+                continue
+        else:
+            rows_left = 0
+            if (kind == "opening_review" and event.get("verdict") == "revise" and all(opening)
+                    and isinstance(event.get("proposals"), list)):
+                revised_opening, rows_left = opening, len(event["proposals"])
     return entries
+
+
+def submitted_sources(log_path, recorded_ids):
+    """Failed and rejected bridge receipts omit source. Match our saved copy to its actual request."""
+    sources = {}
+    for event in search_events(log_path):
+        request_id = event.get("request_id")
+        if event.get("event") != "submitted" or request_id not in recorded_ids:
+            continue
+        source = event.get("source")
+        if not isinstance(source, str):
+            continue
+        try:
+            key = function_keys(validate_program(source, DECODER_TASK))
+            if evaluation_id(key, event.get("retry_of")) == request_id:
+                sources[request_id] = source
+        except (ValueError, TypeError, AttributeError, SyntaxError):
+            continue
+    return sources
 
 
 def write_event(folder, event, **fields):
@@ -270,16 +319,39 @@ def write_event(folder, event, **fields):
         log.write(separator + line.encode("utf-8") + b"\n")
 
 
+BRIDGE_COMMUNICATION_ERRORS = {
+    "Agent bridge communication failed; request outcome is unknown",
+    "Invalid organizer bridge response",
+    "Invalid organizer bridge envelope",
+}
+
+
+def bridge_read(read, *args):
+    """Retry only temporary failures of a read. Never use this wrapper for a model call."""
+    for attempt in range(5):
+        try:
+            return read(*args)
+        except AgentAPIError as error:
+            if str(error) not in BRIDGE_COMMUNICATION_ERRORS or attempt == 4:
+                raise
+            time.sleep(2 ** attempt)
+
+
 def submit_and_wait(context, source, request_id):
-    try:
-        result = context.submit_evaluation(source, request_id=request_id)
-    except AgentAPIError:
-        if not any(row["request_id"] == request_id for row in context.status()["history"]):
-            raise
-    else:
+    for attempt in range(5):
+        try:
+            result = context.submit_evaluation(source, request_id=request_id)
+        except AgentAPIError as error:
+            if any(row["request_id"] == request_id for row in bridge_read(context.status)["history"]):
+                break
+            if str(error) not in BRIDGE_COMMUNICATION_ERRORS or attempt == 4:
+                raise
+            time.sleep(2 ** attempt)
+            continue  # Same request ID and source if the ledger has no record of the first attempt.
         if result["status"] in {"succeeded", "failed", "rejected"}:
             return result
-    return context.wait_evaluation(request_id)
+        break
+    return bridge_read(context.wait_evaluation, request_id)
 
 
 class Agent:
@@ -300,9 +372,10 @@ class Agent:
         interface = (task / "prompt.md").read_text(encoding="utf-8")
         schedule = context.evaluation_cells
 
-        state = context.status()
+        state = bridge_read(context.status)
         history = []
-        sources = {}                    # request_id -> submitted source
+        recorded_ids = {row["request_id"] for row in state["history"]}
+        sources = submitted_sources(folder / "search.jsonl", recorded_ids)
         submitted = {function_keys(initial)}   # programs with an official evaluation record, plus the start
         blocked = set()                 # splices the validator refused
         shelf = []                      # validated proposals that a review set aside without evaluating them
@@ -352,6 +425,7 @@ class Agent:
 
         def record(result):
             history.append(result)
+            recorded_ids.add(result["request_id"])
             source = result.get("source") or sources.get(result["request_id"])
             if source:
                 sources[result["request_id"]] = source
@@ -384,12 +458,12 @@ class Agent:
             nonlocal rejections
             rejections = 0   # every official reply is new evidence, so the next step starts fresh
             rejected_components.clear()
-            request_id = request_id or "e-" + hashlib.sha256(repr(key).encode("utf-8")).hexdigest()[:60]
+            request_id = request_id or evaluation_id(key)
             attempt = {"parent_id": parent_id, "search_intent": intent, "changed_components": changed, **lineage}
             attempts[request_id] = attempt
             sources[request_id] = source
             submitted.add(key)
-            write_event(folder, "submitted", request_id=request_id, decision=decision, **attempt)
+            write_event(folder, "submitted", request_id=request_id, source=source, decision=decision, **attempt)
             # The bridge deduplicates this ID if the submit acknowledgement is lost.
             result = submit_and_wait(context, source, request_id)
             record(result)
@@ -404,14 +478,16 @@ class Agent:
             return changed
 
         for row in state["history"]:
-            record(context.wait_evaluation(row["request_id"]))
+            record(bridge_read(context.wait_evaluation, row["request_id"]))
         keep_incumbent(review()[1])
 
         issue = None
         initial_experience_pending = bool(marker and not history)
         consecutive_api_failures = 0
+        last_recovery_reply = None
+        repeated_recovery_replies = 0
         while True:
-            state = context.status()
+            state = bridge_read(context.status)
             if not state["evaluation_dispatch_allowed"]:
                 write_event(folder, "budget_stop", evaluations_remaining=state["evaluations_remaining"],
                             model_stop_reasons=state["model_stop_reasons"])
@@ -429,7 +505,7 @@ class Agent:
                 target = step["target"]
                 source, previous = sources[target], attempts.get(target, {})
                 key = function_keys(source)
-                retry_id = "r-" + hashlib.sha256((repr(key) + target).encode("utf-8")).hexdigest()[:60]
+                retry_id = evaluation_id(key, target)
                 evaluate(source, key, previous.get("parent_id", context.baseline_candidate), "retry",
                          step["decision"], previous.get("changed_components", {}), request_id=retry_id,
                          retry_of=target)
@@ -438,7 +514,7 @@ class Agent:
                 spare = shelf.pop(step["index"])
                 try:
                     check_proposal(spare["source"], initial, initial, {"intent": spare["intent"]}, True,
-                                   submitted, inert)
+                                   submitted, inert, recorded_ids=recorded_ids)
                 except (ValueError, SyntaxError) as error:
                     write_event(folder, "shelved_proposal_dropped", reason=str(error)[:400])
                     continue
@@ -449,7 +525,7 @@ class Agent:
                 try:
                     source = validate_program(splice(sources[step["loss"]], sources[step["decoder"]]), DECODER_TASK)
                     key = function_keys(source)
-                    if key != step["key"] or key in submitted:
+                    if key != step["key"] or key in submitted or evaluation_id(key) in recorded_ids:
                         raise ValueError("The splice does not reproduce both evaluated functions")
                 except (ValueError, SyntaxError, KeyError) as error:
                     blocked.add(step["key"])
@@ -469,18 +545,29 @@ class Agent:
             parent_id = parent["candidate_id"] if parent else context.baseline_candidate
             parent_source = sources[parent["request_id"]] if parent else initial
 
-            if (not state["model_dispatch_allowed"] or consecutive_api_failures >= MODEL_ERROR_LIMIT
-                    or rejections >= 4 * RELAX_AFTER):
-                # The model is unavailable or stuck: spend remaining evaluations on proposals it already wrote.
-                spare = next((entry for entry in shelf if entry["key"] not in submitted), None)
-                if spare is None:
+            recovery = rejections >= 4 * RELAX_AFTER
+            if not recovery:
+                last_recovery_reply = None
+                repeated_recovery_replies = 0
+            if not state["model_dispatch_allowed"] or consecutive_api_failures >= MODEL_ERROR_LIMIT or recovery:
+                spare = next((entry for entry in shelf if entry["key"] not in submitted
+                              and evaluation_id(entry["key"]) not in recorded_ids), None)
+                if spare is not None:
+                    shelf.remove(spare)
+                    evaluate(spare["source"], spare["key"], spare["parent_id"], spare["intent"],
+                             {"reason": "shelved_proposal_without_model"}, spare["changed"], from_shelf=True)
+                    continue
+                if (not state["model_dispatch_allowed"] or consecutive_api_failures >= MODEL_ERROR_LIMIT
+                        or repeated_recovery_replies >= REPEATED_RECOVERY_LIMIT):
+                    reason = ("model_budget" if not state["model_dispatch_allowed"] else "model_unavailable"
+                              if consecutive_api_failures >= MODEL_ERROR_LIMIT else "same_unusable_recovery_reply")
                     write_event(folder, "budget_stop", evaluations_remaining=state["evaluations_remaining"],
-                                model_stop_reasons=state["model_stop_reasons"])
+                                reason=reason, model_stop_reasons=state["model_stop_reasons"])
                     break
-                shelf.remove(spare)
-                evaluate(spare["source"], spare["key"], spare["parent_id"], spare["intent"],
-                         {"reason": "shelved_proposal_without_model"}, spare["changed"], from_shelf=True)
-                continue
+                intent = "diversify"
+                decision = {"reason": "recover_after_rejected_proposals",
+                            "instruction": "Propose an untested valid change. You may change either function or both."}
+                step = {**step, "intent": intent, "decision": decision, "required_component": None, "avoid": []}
 
             relaxed = rejections >= RELAX_AFTER
             if relaxed:
@@ -543,11 +630,22 @@ class Agent:
             try:
                 source = generated_program(response)
                 structures = {function_keys(text, ignore_numbers=True) for text in sources.values()}
-                key, parent_key = check_proposal(source, parent_source, initial, step, relaxed, submitted, inert,
-                                                 structures)
+                key, parent_key = check_proposal(source, parent_source, initial, step, relaxed, submitted,
+                                                 [] if recovery else inert,
+                                                 structures, recorded_ids)
             except (ValueError, SyntaxError) as error:
                 issue = str(error)[:400]
                 rejections += 1
+                if recovery:
+                    if source is not None:
+                        reply_key = function_keys(source)
+                    else:
+                        try:
+                            reply_key = model_text(response)
+                        except ValueError:
+                            reply_key = issue
+                    repeated_recovery_replies = repeated_recovery_replies + 1 if reply_key == last_recovery_reply else 1
+                    last_recovery_reply = reply_key
                 if source is not None:
                     edited = [name for name, new, old in zip(COMPONENTS, function_keys(source),
                                                               function_keys(parent_source)) if new != old]
@@ -555,7 +653,7 @@ class Agent:
                 write_event(folder, "invalid_proposal", parent_id=parent_id, reason=issue)
                 continue
 
-            if (decision["reason"] == "opening_control" and context.status()["model_dispatch_allowed"]
+            if (decision["reason"] == "opening_control" and bridge_read(context.status)["model_dispatch_allowed"]
                     and claim_once(context, f"loss-decoder-opening-review-{intent}")):
                 review_inputs = {"search_intent": intent, "parent_program": parent_source,
                                  "official_interface": interface}
@@ -566,14 +664,14 @@ class Agent:
                         **review_inputs, "proposal_a": source,
                     }))
                     keys["B"], _ = check_proposal(alternative, parent_source, initial, step, True,
-                                                  submitted | {key}, inert)
+                                                  submitted | {key}, inert, recorded_ids=recorded_ids)
                     if function_keys(alternative, ignore_numbers=True) == function_keys(source, ignore_numbers=True):
                         raise ValueError("Opening alternative only changes numeric literals")
                     choices["B"] = alternative
                 except (AgentAPIError, ValueError, SyntaxError) as error:
                     write_event(folder, "opening_alternative_rejected", parent_id=parent_id, reason=str(error)[:400])
                 verdict, reason = "A", ""
-                if context.status()["model_dispatch_allowed"]:
+                if bridge_read(context.status)["model_dispatch_allowed"]:
                     try:
                         from opening_gradients import opening_gradients
                         gradients = opening_gradients(intent, context, parent_source, choices)
@@ -584,6 +682,9 @@ class Agent:
                         reason = str(error)[:400]
                 write_event(folder, "opening_review", parent_id=parent_id, search_intent=intent,
                             proposals=list(choices), verdict=verdict, reason=reason)
+                if verdict == "revise":
+                    issue = f"Opening review found this concrete issue: {reason} Propose a different mechanism."
+                    continue
                 # A proposal the review sets aside was never measured: keep it available, do not ban it.
                 for name, program in choices.items():
                     if name != verdict:
@@ -592,9 +693,6 @@ class Agent:
                         shelf.append(entry)
                         write_event(folder, "shelved", source=program, parent_id=parent_id,
                                     search_intent=intent, changed_components=entry["changed"])
-                if verdict == "revise":
-                    issue = f"Opening review found this concrete issue: {reason} Propose a different mechanism."
-                    continue
                 source, key = choices[verdict], keys[verdict]
 
             evaluate(source, key, parent_id, intent, decision, hypotheses(source, key, parent_key))

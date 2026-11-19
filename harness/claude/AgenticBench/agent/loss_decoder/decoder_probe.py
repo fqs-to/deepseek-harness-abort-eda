@@ -2,10 +2,10 @@
 
 A decoder is deterministic NumPy code, so its contract can be checked before an
 official evaluation is spent on it. The probe runs a validated candidate on
-small synthetic inputs and reports only two things: a violation of the
-published decoder contract, or labels identical to the parent's on every
-input. It produces no score, ranks nothing and never replaces the official
-evaluation. It is skipped when NumPy is unavailable in the agent container.
+small synthetic inputs and reports violations of the published decoder
+contract. Matching labels on these inputs do not establish equivalence on
+the actual training designs. Official evaluations measure physical effects.
+The probe is skipped when NumPy is unavailable in the agent container.
 
 The stand-in for the frozen helper mirrors the published excerpt of the
 official area-balanced decoder. The organizer's helper stays authoritative.
@@ -120,7 +120,7 @@ def _expired(signum, frame):
 
 
 def probe_decoder(source, parent_source):
-    """Return None when the decoder may be submitted, otherwise one sentence for the model."""
+    """Return a contract issue for the model. Keep the caller's two-source interface."""
     if np is None:
         return None
     timed = hasattr(signal, "setitimer") and threading.current_thread() is threading.main_thread()
@@ -128,36 +128,27 @@ def probe_decoder(source, parent_source):
     try:
         if timed:
             signal.setitimer(signal.ITIMER_REAL, PROBE_SECONDS)
-        candidate, parent = _decoder(source), _decoder(parent_source)
-        identical = True
-        regular = ((seed, "random") for seed in PROBE_SEEDS)
-        for batch in (regular, ((0, "unequal_areas"), (0, "clustered"))):
-            if not identical:
-                break
-            for seed, profile in batch:
-                embeddings, areas = _probe_inputs(seed, profile)
-                arguments = (embeddings, areas, seed, PROBE_ITERATIONS, PROBE_BALANCE)
-                try:
-                    labels = candidate(*arguments)
-                except (NameError, _Timeout):
-                    return None  # The probe's sandbox is narrower than the official one: inconclusive.
-                except KeyError as error:
-                    # Some NumPy versions lazily load internal helpers from the caller's scope.
-                    if error.args == ("__import__",):
-                        return None
-                    return f"The decoder raised KeyError on a synthetic probe: {str(error)[:160]}"
-                except Exception as error:
-                    return (f"The decoder raised {type(error).__name__} on a synthetic probe with read-only "
-                            f"inputs: {str(error)[:160]}")
-                issue = _contract_issue(labels, areas)
-                if issue:
-                    return "The decoder breaks the published contract on a synthetic probe: " + issue
-                try:
-                    identical = identical and np.array_equal(np.asarray(labels), np.asarray(parent(*arguments)))
-                except Exception:
-                    identical = False
-        if identical:
-            return "The proposed decoder matched the parent's labels on all synthetic probe inputs."
+        candidate = _decoder(source)
+        profiles = [(seed, "random") for seed in PROBE_SEEDS] + [(0, "unequal_areas"), (0, "clustered")]
+        for seed, profile in profiles:
+            embeddings, areas = _probe_inputs(seed, profile)
+            try:
+                labels = candidate(embeddings, areas, seed, PROBE_ITERATIONS, PROBE_BALANCE)
+            except _Timeout:
+                return None
+            except NameError:
+                continue  # The probe's sandbox lacks some names from the official evaluator.
+            except KeyError as error:
+                # Some NumPy versions lazily load internal helpers from the caller's scope.
+                if error.args == ("__import__",):
+                    continue
+                return f"The decoder raised KeyError on a synthetic probe: {str(error)[:160]}"
+            except Exception as error:
+                return (f"The decoder raised {type(error).__name__} on a synthetic probe with read-only "
+                        f"inputs: {str(error)[:160]}")
+            issue = _contract_issue(labels, areas)
+            if issue:
+                return "The decoder breaks the published contract on a synthetic probe: " + issue
         return None
     except (_Timeout, SyntaxError, KeyError):
         return None

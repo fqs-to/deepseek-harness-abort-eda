@@ -324,11 +324,12 @@ class PartitionFeedback(unittest.TestCase):
 
 @unittest.skipUnless(support.importlib.util.find_spec("numpy"), "the decoder probe needs NumPy")
 class DecoderContract(unittest.TestCase):
-    def test_equivalence_requires_unequal_areas_and_clustered_embeddings(self):
+    def test_agreement_on_synthetic_inputs_does_not_reject_a_valid_decoder(self):
         with patch.object(sys, "path", [str(AGENT_DIR), *sys.path]):
             import decoder_probe as probe
         parent = support.INITIAL_PROGRAM
-        before_return = parent.removesuffix("    return labels\n")
+        before_return, separator, tail = parent.rpartition("    return labels\n")
+        self.assertTrue(separator and not tail)
         alternative = """        order = np.argsort(embeddings[:, 0], kind='stable')
         chosen = np.cumsum(node_areas[order]) <= balance_target * np.sum(node_areas)
         return chosen[np.argsort(order)].astype(np.int64)
@@ -352,22 +353,24 @@ class DecoderContract(unittest.TestCase):
                 changed = (labels != original(*args)).sum()
                 self.assertGreater(min(changed, len(labels) - changed), 0)
                 self.assertIsNone(probe.probe_decoder(source, parent))
-        self.assertIn("matched the parent's labels", probe.probe_decoder(support.program(decoder="noop"), parent))
+        self.assertIsNone(probe.probe_decoder(support.program(decoder="noop"), parent))
 
-    def test_extra_probes_are_conditional_and_both_check_the_contract(self):
+    def test_all_profiles_check_the_contract_after_a_label_change(self):
         with patch.object(sys, "path", [str(AGENT_DIR), *sys.path]):
             import decoder_probe as probe
         parent = support.INITIAL_PROGRAM
         with patch.object(probe, "_probe_inputs", wraps=probe._probe_inputs) as inputs:
             self.assertIsNone(probe.probe_decoder(support.program(decoder="flip"), parent))
-            self.assertEqual([call.args for call in inputs.call_args_list], [(seed, "random") for seed in range(6)])
-        source = parent.removesuffix("    return labels\n") + """    if np.any(node_areas > 2 * np.mean(node_areas)):
-        return 1 - labels
-    if np.any(np.mean(np.square(embeddings), axis=0) > 2 / embeddings.shape[1]):
-        return labels * 1.0
-    return labels
-"""
-        self.assertIn("labels must be integers", probe.probe_decoder(source, parent))
+            expected = [(seed, "random") for seed in probe.PROBE_SEEDS] + [(0, "unequal_areas"), (0, "clustered")]
+            self.assertEqual([call.args for call in inputs.call_args_list], expected)
+        for condition in ("np.any(node_areas > 2 * np.mean(node_areas))",
+                          "np.any(np.mean(np.square(embeddings), axis=0) > 2 / embeddings.shape[1])"):
+            with self.subTest(condition=condition):
+                before_return, separator, tail = parent.rpartition("    return labels\n")
+                self.assertTrue(separator and not tail)
+                source = (before_return + "    if " + condition + ":\n"
+                          + "        return labels * 1.0\n    return 1 - labels\n")
+                self.assertIn("labels must be integers", probe.probe_decoder(source, parent))
 
     def test_archived_decoder_runs_on_cold_numpy(self):
         archive = Path(__file__).resolve().parents[3] / "candidates"
@@ -388,10 +391,10 @@ assert issue is None, issue
         subprocess.run([sys.executable, "-B", "-c", script, str(AGENT_DIR), str(archive)], check=True)
 
     def test_nonempty_skewed_decoder_reaches_evaluation_after_invalid_proposals(self):
-        bridge, _, events = run([("hard_negative", 0.25)], ["float_labels", "noop", "empty", "skewed"],
+        bridge, _, events = run([("hard_negative", 0.25)], ["float_labels", "empty", "skewed"],
                                 evaluation_limit=2)
         submitted = {identify(result["source"])[2] for result in bridge.evaluations()}
-        self.assertFalse(submitted & {"float_labels", "noop", "empty"}, "\n" + trace(bridge))
+        self.assertFalse(submitted & {"float_labels", "empty"}, "\n" + trace(bridge))
         self.assertIn("skewed", submitted, "\n" + trace(bridge))
 
 

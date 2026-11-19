@@ -192,11 +192,15 @@ def load_agent(agent_directory, workdir):
     install_framework_stubs()
     copy = Path(workdir) / "agent"
     shutil.copytree(agent_directory, copy, ignore=shutil.ignore_patterns("__pycache__", "search.jsonl", "opening.txt"))
-    for name in ("agent", "paired_feedback", "search_policy", "decoder_probe"):
+    for name in ("agent", "paired_feedback", "search_policy", "decoder_probe", "opening_gradients"):
         sys.modules.pop(name, None)
     sys.path.insert(0, str(copy))
     try:
         loaded = importlib.import_module("agent")
+        # The organizer keeps the participant path active throughout Agent.run.
+        # Cache this lazily imported helper from the same private copy before restoring sys.path.
+        if (copy / "opening_gradients.py").is_file():
+            importlib.import_module("opening_gradients")
     finally:
         sys.path.remove(str(copy))
     loaded.time.sleep = lambda seconds: None
