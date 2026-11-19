@@ -447,6 +447,14 @@ def next_step(trials, start_score, start_cell_scores, opening=OPENING, evaluatio
     # 8. A verified incumbent leads: exploit it once, then widen the mechanisms built on it.
     if last["request_id"] == incumbent["request_id"]:
         return propose(incumbent, "refine", "refine_incumbent", candidate_id=incumbent["candidate_id"])
+
+    # The penultimate evaluation may have just revealed a useful parent for the final edit.
+    if (evaluations_remaining == 1 and start_score is not None and latest["complete"]
+            and not any(trial["parent_id"] == latest["candidate_id"] for trial in trials)
+            and _alternative_parent([latest], incumbent, start_score)):
+        return propose(latest, "refine", "refine_new_parent_winning_more_paired_cases",
+                       candidate_id=latest["candidate_id"])
+
     avoid = sorted(set(exhausted) | {incumbent["family"]} - {None})
     return propose(incumbent, "diversify", "explore_from_incumbent", candidate_id=incumbent["candidate_id"],
                    avoid=avoid)

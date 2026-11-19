@@ -56,3 +56,36 @@ class ParentSelection(unittest.TestCase):
         other = trial("other", score=sum(scores.values()) / len(scores), cell_scores=scores,
                       changed=("loss", "decoder"))
         self.assertEqual(choose([other, leader], 2)["parent"], leader["request_id"])
+        self.assertEqual(choose([leader, other], 1)["parent"], leader["request_id"])
+
+    def test_last_slot_can_refine_a_new_candidate_with_broad_seed_gains(self):
+        leader = trial("leader", score=35, changed=("loss", "decoder"))
+        scores = dict(zip(CELL_KEYS, [37, 38, 18, 36, 37, 25, 36, 26, 27]))
+        other = trial("other", score=sum(scores.values()) / len(scores), cell_scores=scores,
+                      changed=("loss", "decoder"), parent_id=leader["candidate_id"])
+        history = [leader, other]
+        step = choose(history, 1)
+        self.assertEqual((step["parent"], step["intent"], step["decision"]["reason"]),
+                         (other["request_id"], "refine", "refine_new_parent_winning_more_paired_cases"))
+        self.assertEqual(policy.final_choice(history, START)[0], leader)
+
+        child = trial("child", score=25, parent_id=other["candidate_id"])
+        repeated = dict(other, request_id="retry-other")
+        self.assertEqual(choose([leader, other, child, repeated], 1)["parent"], leader["request_id"])
+
+        stopped = trial("stopped", "environment_failure", None, retry_of="e-earlier", cell_scores={})
+        self.assertEqual(choose(history + [stopped], 1)["parent"], leader["request_id"])
+
+    def test_last_slot_preserves_pending_controls_and_measured_repair(self):
+        leader_scores = dict.fromkeys(CELL_KEYS, 25)
+        leader_scores[CELL_KEYS[0]] = 88
+        leader = trial("leader", score=32, cell_scores=leader_scores, changed=("loss", "decoder"))
+        repair = trial("other", score=30, changed=("loss", "decoder"), parent_id=leader["candidate_id"],
+                       official_score_delta=-2, improved_pairs=8, regressed_pairs=1,
+                       largest_regression={"case": CELL_KEYS[0][0], "seed": CELL_KEYS[0][1]})
+        history = [leader, repair]
+        self.assertEqual(choose(history, 1)["decision"]["reason"], "concentrated_regression")
+        self.assertEqual(choose(history, 1, shelved=[{"key": "open", "changed": ["decoder"]}])["action"],
+                         "shelved")
+        singles = [trial("loss", score=24, changed=("loss",)), trial("decoder", score=25)]
+        self.assertEqual(choose(singles + history, 1)["action"], "recombine")

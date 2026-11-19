@@ -19,6 +19,38 @@ class ResumeErrors(unittest.TestCase):
         self.agent, self.folder = support.load_agent(AGENT_DIR, self.workdir)
         self.log = self.folder / "search.jsonl"
 
+    def test_metered_model_calls_record_visible_content_and_gateway_errors_once(self):
+        bridge = Mock()
+        request = {"hypothesis": "分层"}
+        private = "fixture private reasoning"
+        partial = {"status": "incomplete", "output": [
+            {"type": "reasoning", "summary": private},
+            {"type": "message", "content": [{"type": "output_text", "text": "partial"}]},
+        ], "usage": {"input_tokens": 8, "output_tokens": 2, "other": private}}
+        complete = {"status": "completed", "output": [
+            {"type": "message", "content": [{"type": "output_text", "text": " final "}]}
+        ]}
+        bridge.model.responses_create.side_effect = [partial, support.AgentAPIError(LOST), complete]
+        self.assertIs(self.agent.ask_model(bridge, "first", request), partial)
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            self.agent.model_text(partial)
+        with self.assertRaisesRegex(support.AgentAPIError, "outcome is unknown"):
+            self.agent.ask_model(bridge, "second", request, purpose="opening_alternative")
+        self.assertEqual(self.agent.model_text(self.agent.ask_model(bridge, "third", request)), "final")
+        events = list(self.agent.search_events(self.log))
+        self.assertEqual([e["event"] for e in events], ["model_request", "model_response"] * 3)
+        self.assertEqual(bridge.model.responses_create.call_count, 3)
+        self.assertEqual(len({e["call_id"] for e in events}), 3)
+        for sent, received, actual in zip(events[::2], events[1::2], bridge.model.responses_create.call_args_list):
+            self.assertEqual(received["call_id"], sent["call_id"])
+            self.assertEqual(received["purpose"], sent["purpose"])
+            self.assertEqual(sent["payload"], actual.args[0])
+        self.assertEqual(events[1]["output_text"], "partial")
+        self.assertEqual(events[1]["usage"], {"input_tokens": 8, "output_tokens": 2})
+        self.assertEqual(events[3]["status"], "gateway_error")
+        self.assertEqual(events[5]["output_text"], " final ")
+        self.assertNotIn(private, self.log.read_text(encoding="utf-8"))
+
     def test_restart_recovers_failed_source_and_retries_once_without_a_model_call(self):
         losses = [("excess", 1), ("excess", 4), ("hard_negative", 0.25)]
         decoders = ["flip", "orient_axis", "gap", "loop"]
@@ -124,7 +156,7 @@ class ResumeErrors(unittest.TestCase):
             self.agent.Agent().run(bridge)
         self.assertEqual(bridge.model_calls, 12)
         self.assertEqual(bridge.order, [])
-        stops = [json.loads(l) for l in self.log.read_text().splitlines() if '"event": "budget_stop"' in l]
+        stops = [e for e in self.agent.search_events(self.log) if e["event"] == "budget_stop"]
         self.assertEqual(stops[-1]["reason"], "model_budget")
 
     def test_unchanged_unusable_recovery_reply_eventually_stops(self):
@@ -133,4 +165,4 @@ class ResumeErrors(unittest.TestCase):
             self.agent.Agent().run(bridge)
         self.assertEqual(bridge.model_calls, 12 + self.agent.REPEATED_RECOVERY_LIMIT)
         self.assertEqual(bridge.order, [])
-        self.assertIn("same_unusable_recovery_reply", self.log.read_text())
+        self.assertIn("same_unusable_recovery_reply", self.log.read_text(encoding="utf-8"))

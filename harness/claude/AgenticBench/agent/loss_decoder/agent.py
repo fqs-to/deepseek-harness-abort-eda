@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 from statistics import mean
 import time
+from uuid import uuid4
 
 from contest2.agent_api import AgentAPIError
 from contest2.model_pricing import MODEL_ID
@@ -47,17 +48,22 @@ OPENING_REVIEW = Path(__file__).with_name("opening_review_prompt.md").read_text(
 FENCE = re.compile(r"```(?:python|py)?[ \t]*\n(.*?)\n```", re.DOTALL)
 
 
+def visible_output_text(response):
+    parts = []
+    output = response.get("output")
+    for item in output if isinstance(output, list) else ():
+        if not isinstance(item, dict) or item.get("type") != "message" or not isinstance(item.get("content"), list):
+            continue
+        for part in item["content"]:
+            if isinstance(part, dict) and part.get("type") == "output_text" and isinstance(part.get("text"), str):
+                parts.append(part["text"])
+    return "\n".join(parts)
+
+
 def model_text(response):
     if not isinstance(response, dict) or response.get("status") != "completed":
         raise ValueError("The model returned an incomplete response")
-    parts = []
-    for item in response.get("output") or []:
-        if not isinstance(item, dict) or item.get("type") != "message":
-            continue
-        for part in item.get("content") or []:
-            if isinstance(part, dict) and part.get("type") == "output_text" and isinstance(part.get("text"), str):
-                parts.append(part["text"])
-    return "\n".join(parts).strip()
+    return visible_output_text(response).strip()
 
 
 def generated_program(response):
@@ -67,8 +73,8 @@ def generated_program(response):
     return validate_program(blocks[0] if len(blocks) == 1 else text, DECODER_TASK)
 
 
-def ask_model(context, instructions, request):
-    return context.model.responses_create({
+def ask_model(context, instructions, request, purpose="generation"):
+    payload = {
         "model": MODEL_ID,
         "stream": False,
         "reasoning": {"effort": "low"},
@@ -76,7 +82,24 @@ def ask_model(context, instructions, request):
             {"type": "message", "role": "system", "content": instructions},
             {"type": "message", "role": "user", "content": json.dumps(request, ensure_ascii=False)},
         ],
-    })
+    }
+    folder = Path(__file__).resolve().parent
+    call_id = uuid4().hex
+    write_event(folder, "model_request", call_id=call_id, purpose=purpose, payload=payload)
+    try:
+        response = context.model.responses_create(payload)
+    except AgentAPIError:
+        write_event(folder, "model_response", call_id=call_id, purpose=purpose, status="gateway_error")
+        raise
+    fields = {"status": "invalid_response"}
+    if isinstance(response, dict):
+        fields["status"] = response.get("status")
+        fields["output_text"] = visible_output_text(response)
+        usage = response.get("usage")
+        if isinstance(usage, dict):
+            fields["usage"] = {k: usage[k] for k in ("input_tokens", "output_tokens") if isinstance(usage.get(k), int)}
+    write_event(folder, "model_response", call_id=call_id, purpose=purpose, **fields)
+    return response
 
 
 def inert_edits(trials, sources, initial, baseline_id):
@@ -154,7 +177,8 @@ def splice(loss_source, decoder_source):
 
 
 def review_opening(context, choices, review_inputs):
-    result = model_text(ask_model(context, OPENING_REVIEW, {**review_inputs, "proposals": choices}))
+    result = model_text(ask_model(context, OPENING_REVIEW, {**review_inputs, "proposals": choices},
+                                  purpose="opening_review"))
     verdict, _, reason = result.partition(":")
     if verdict.strip().upper() == "REVISE" and reason.strip():
         return "revise", " ".join(reason.split())[:400]
@@ -662,7 +686,7 @@ class Agent:
                 try:
                     alternative = generated_program(ask_model(context, OPENING_ALTERNATIVE, {
                         **review_inputs, "proposal_a": source,
-                    }))
+                    }, purpose="opening_alternative"))
                     keys["B"], _ = check_proposal(alternative, parent_source, initial, step, True,
                                                   submitted | {key}, inert, recorded_ids=recorded_ids)
                     if function_keys(alternative, ignore_numbers=True) == function_keys(source, ignore_numbers=True):
