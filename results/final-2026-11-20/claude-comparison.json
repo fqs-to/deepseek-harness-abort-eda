@@ -1,0 +1,181 @@
+{
+  "round": 4,
+  "candidate_id": "6a8e3ef053a9119bf4daadc0d3bf7f8b8b804d7f0d1e499986ab2f30f4f09edd",
+  "train": {
+    "score": 34.75499580780448,
+    "cells": [
+      {
+        "case": "ariane133-ng45",
+        "seed": "1001",
+        "score": 82.97416578578058,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.21748203853384387,
+        "final_global_tns_setup_ns": -0.9355885220255487,
+        "wns_deficit_improvement": 0.5889082857207341,
+        "tns_deficit_improvement": 0.9902972392825206
+      },
+      {
+        "case": "ariane133-ng45",
+        "seed": "1002",
+        "score": 72.41912982225223,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.2499178712494306,
+        "final_global_tns_setup_ns": -13.957114969925723,
+        "wns_deficit_improvement": 0.5275970061087809,
+        "tns_deficit_improvement": 0.8552541596316833
+      },
+      {
+        "case": "ariane133-ng45",
+        "seed": "1003",
+        "score": 57.44286529217939,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.44980731523751166,
+        "final_global_tns_setup_ns": -13.736558945794359,
+        "wns_deficit_improvement": 0.14975939363577623,
+        "tns_deficit_improvement": 0.8575414924458056
+      },
+      {
+        "case": "bp-ng45",
+        "seed": "1001",
+        "score": -15.3717471846955,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -7.825090130683246,
+        "final_global_tns_setup_ns": -8746.727209646417,
+        "wns_deficit_improvement": 0.09675950419589735,
+        "tns_deficit_improvement": -0.3207021225421899
+      },
+      {
+        "case": "bp-ng45",
+        "seed": "1002",
+        "score": -49.246347534797756,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -7.8255883987907895,
+        "final_global_tns_setup_ns": -12485.543619054048,
+        "wns_deficit_improvement": 0.09670198972322229,
+        "tns_deficit_improvement": -0.8852404520621108
+      },
+      {
+        "case": "bp-ng45",
+        "seed": "1003",
+        "score": -1.3759845288207875,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -7.93139532056525,
+        "final_global_tns_setup_ns": -7147.700873490194,
+        "wns_deficit_improvement": 0.08448882733313937,
+        "tns_deficit_improvement": -0.07925896036910604
+      },
+      {
+        "case": "bp_fe-ng45",
+        "seed": "1001",
+        "score": 55.806399562499244,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.6261135120918279,
+        "final_global_tns_setup_ns": -195.64786255971472,
+        "wns_deficit_improvement": 0.3045113838741751,
+        "tns_deficit_improvement": 0.7270990701255373
+      },
+      {
+        "case": "bp_fe-ng45",
+        "seed": "1002",
+        "score": 54.05621423546373,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.6583063169804508,
+        "final_global_tns_setup_ns": -199.4689341270244,
+        "wns_deficit_improvement": 0.2687515274123754,
+        "tns_deficit_improvement": 0.7217692189828119
+      },
+      {
+        "case": "bp_fe-ng45",
+        "seed": "1003",
+        "score": 56.090266820379185,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.6029357184181231,
+        "final_global_tns_setup_ns": -204.5612093171251,
+        "wns_deficit_improvement": 0.33025734101398946,
+        "tns_deficit_improvement": 0.7146662196636601
+      }
+    ]
+  },
+  "validation": {
+    "score": -4.34588999372448,
+    "cells": [
+      {
+        "case": "swerv_wrapper-ng45",
+        "seed": "1001",
+        "score": 6.58927973334508,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -2.1961595386090615,
+        "final_global_tns_setup_ns": -1913.47231475623,
+        "wns_deficit_improvement": 0.11514278082493005,
+        "tns_deficit_improvement": 0.03305947500579794
+      },
+      {
+        "case": "swerv_wrapper-ng45",
+        "seed": "1002",
+        "score": -1.226189842266917,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -1.9685120757296468,
+        "final_global_tns_setup_ns": -2292.2436722004254,
+        "wns_deficit_improvement": 0.20686448747440148,
+        "tns_deficit_improvement": -0.15834615568738294
+      },
+      {
+        "case": "swerv_wrapper-ng45",
+        "seed": "1003",
+        "score": 25.662735831250593,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -1.6701878131037184,
+        "final_global_tns_setup_ns": -1563.9779336506276,
+        "wns_deficit_improvement": 0.3270626665223683,
+        "tns_deficit_improvement": 0.20967048617259776
+      },
+      {
+        "case": "bp_fe-asap7",
+        "seed": "1001",
+        "score": 22.66466834217484,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.4040807802736456,
+        "final_global_tns_setup_ns": -8.03363798224065,
+        "wns_deficit_improvement": 0.10217110643928205,
+        "tns_deficit_improvement": 0.30963040141005926
+      },
+      {
+        "case": "bp_fe-asap7",
+        "seed": "1002",
+        "score": -100.0,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.6840396220845126,
+        "final_global_tns_setup_ns": -27.516519619473268,
+        "wns_deficit_improvement": -0.5198706967253521,
+        "tns_deficit_improvement": -1.3646284094805183
+      },
+      {
+        "case": "bp_fe-asap7",
+        "seed": "1003",
+        "score": 20.234165973149526,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.4096885169296248,
+        "final_global_tns_setup_ns": -8.408361356288454,
+        "wns_deficit_improvement": 0.08971125127416348,
+        "tns_deficit_improvement": 0.2774285987030498
+      }
+    ]
+  },
+  "evidence_commit": "1e7c625d68f4e0679bc325eb37b257423aa0a235",
+  "five_case_score": 19.11464148719289
+}

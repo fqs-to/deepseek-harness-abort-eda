@@ -1,0 +1,1271 @@
+{
+  "round": 6,
+  "candidate_id": "7196c38fd3f632fb5a2abf144031b37f8a0af26b3d8377116317b024193b5f17",
+  "ten_rounds": [
+    {
+      "round": 1,
+      "request_id": "e-4ef9305d5025e31f432231632a853d3fd9bd78ebea51e20daa86ec8d8d20",
+      "candidate_id": "53ff3ae566d533e2ad76d2d758b840642f5f426f80ab74451d3084ef224f0b14",
+      "ledger_status": "succeeded",
+      "score": -0.15789072045821229,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 40.564370667699386,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.8197975863528717,
+          "final_global_tns_setup_ns": -274.9419330027015,
+          "wns_deficit_improvement": 0.08936657998170044,
+          "tns_deficit_improvement": 0.6164951244738561
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 52.83948546020406,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6486114051660233,
+          "final_global_tns_setup_ns": -219.1542653826123,
+          "wns_deficit_improvement": 0.279520662195541,
+          "tns_deficit_improvement": 0.6943109828730404
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 55.82351841019526,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.639466275808939,
+          "final_global_tns_setup_ns": -188.35428327940795,
+          "wns_deficit_improvement": 0.2896790971087256,
+          "tns_deficit_improvement": 0.7372725754307706
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -20.823599877503156,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.392474508445966,
+          "final_global_tns_setup_ns": -9059.339646875793,
+          "wns_deficit_improvement": 0.03126702575499353,
+          "tns_deficit_improvement": -0.3679046817950483
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -51.953553194015214,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.830465386631293,
+          "final_global_tns_setup_ns": -12781.878829145442,
+          "wns_deficit_improvement": 0.09613904503612988,
+          "tns_deficit_improvement": -0.9299852499243402
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -14.454241483743441,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.870566643414895,
+          "final_global_tns_setup_ns": -8622.276498609612,
+          "wns_deficit_improvement": 0.09151020645987375,
+          "tns_deficit_improvement": -0.30191082903563987
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": -100.0,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.4099947164484764,
+          "final_global_tns_setup_ns": -274.63122686642095,
+          "wns_deficit_improvement": 0.22501447951060452,
+          "tns_deficit_improvement": -1.848133572720258
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": -1.5077603893893712,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.511323442504157,
+          "final_global_tns_setup_ns": -101.00025635050363,
+          "wns_deficit_improvement": 0.033479583200160166,
+          "tns_deficit_improvement": -0.0474490619565963
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 38.09076392242856,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.5738236714876622,
+          "final_global_tns_setup_ns": -29.767709140211068,
+          "wns_deficit_improvement": -0.08466040872233387,
+          "tns_deficit_improvement": 0.6912863378553652
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "request_id": "e-2f8b6a21e098e4ebb7c72e455ca9f688585ea99fa4c19051811e1080f16a",
+      "candidate_id": "c3a9f6704c028bc1050243e7c59983a5336d2f3c39bf2cb47dbf82c9f2429ae8",
+      "ledger_status": "succeeded",
+      "score": 20.950680255994254,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 30.383757030456426,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.9471037555626338,
+          "final_global_tns_setup_ns": -328.9992016386004,
+          "wns_deficit_improvement": -0.05204546390179267,
+          "tns_deficit_improvement": 0.5410929264421356
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 43.6422400749086,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.8335696813182434,
+          "final_global_tns_setup_ns": -230.85389187026954,
+          "wns_deficit_improvement": 0.0740684989091185,
+          "tns_deficit_improvement": 0.6779916686423977
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 52.91075605188469,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6222046387561772,
+          "final_global_tns_setup_ns": -232.32212899925938,
+          "wns_deficit_improvement": 0.3088533711565453,
+          "tns_deficit_improvement": 0.6759436867603813
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -8.530293112605019,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.165017337798355,
+          "final_global_tns_setup_ns": -7818.328634240233,
+          "wns_deficit_improvement": 0.0575221262278117,
+          "tns_deficit_improvement": -0.18051963602862478
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -29.030548511918862,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.875408992296051,
+          "final_global_tns_setup_ns": -10228.737954163109,
+          "wns_deficit_improvement": 0.09095126010510635,
+          "tns_deficit_improvement": -0.5444766486020519
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -1.942804964301776,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.933900871958086,
+          "final_global_tns_setup_ns": -7208.9894494392765,
+          "wns_deficit_improvement": 0.08419961462829735,
+          "tns_deficit_improvement": -0.08851315915722784
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": 52.88447243296773,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.5512555012940205,
+          "final_global_tns_setup_ns": -8.735259873796505,
+          "wns_deficit_improvement": -0.04200130990389658,
+          "tns_deficit_improvement": 0.9094087471520599
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": -22.377232655297995,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.3967057905570866,
+          "final_global_tns_setup_ns": -148.46647353966532,
+          "wns_deficit_improvement": 0.25013364504008995,
+          "tns_deficit_improvement": -0.5397096409483599
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 70.61577595785448,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.36075987662757314,
+          "final_global_tns_setup_ns": -3.386792275822928,
+          "wns_deficit_improvement": 0.3180797958037958,
+          "tns_deficit_improvement": 0.964876402095044
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "request_id": "e-a6187ad38587ca076fff177a7d583dcbe782c577c29c6190b07425e3d211",
+      "candidate_id": "9b007f6b841d2f3d6cda3acedb9909dd1837ccdd765ef3bcc3584b647d56aaa4",
+      "ledger_status": "succeeded",
+      "score": 32.59872614731462,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 40.13674448552861,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7068015262014307,
+          "final_global_tns_setup_ns": -340.0415192336708,
+          "wns_deficit_improvement": 0.21488291525425768,
+          "tns_deficit_improvement": 0.525690464589305
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 46.900269707912926,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7404440603566103,
+          "final_global_tns_setup_ns": -241.3655761352669,
+          "wns_deficit_improvement": 0.17751269552464413,
+          "tns_deficit_improvement": 0.6633293647821192
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 55.0445417553841,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6236942250304451,
+          "final_global_tns_setup_ns": -206.03544342697435,
+          "wns_deficit_improvement": 0.3071987346146354,
+          "tns_deficit_improvement": 0.7126098728466448
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -13.041424337058425,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.870720298285849,
+          "final_global_tns_setup_ns": -8466.251768613083,
+          "wns_deficit_improvement": 0.09149247026776537,
+          "tns_deficit_improvement": -0.27835205246281736
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -16.285614296718016,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.829555891903798,
+          "final_global_tns_setup_ns": -8845.323714064716,
+          "wns_deficit_improvement": 0.09624402688999673,
+          "tns_deficit_improvement": -0.33558958953863144
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -28.297864406442063,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.282694764487829,
+          "final_global_tns_setup_ns": -9940.295339316917,
+          "wns_deficit_improvement": 0.04393876610635195,
+          "tns_deficit_improvement": -0.5009235841782691
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": 74.49495435581103,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.31825210034773294,
+          "final_global_tns_setup_ns": -2.317769597407585,
+          "wns_deficit_improvement": 0.39842939496556606,
+          "tns_deficit_improvement": 0.9759629759531399
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": 91.1677918054718,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.08294387633713877,
+          "final_global_tns_setup_ns": -4.115544022065017,
+          "wns_deficit_improvement": 0.8432167523246032,
+          "tns_deficit_improvement": 0.9573186952081276
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 43.26913625594169,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6301359612461099,
+          "final_global_tns_setup_ns": -14.603103140054971,
+          "wns_deficit_improvement": -0.1911037540572111,
+          "tns_deficit_improvement": 0.8485547736371688
+        }
+      ]
+    },
+    {
+      "round": 4,
+      "request_id": "e-244c92773aa249612601325b6ce2e7e70e2d2340a94f197f02e517974951",
+      "candidate_id": "4c42c5ee4b0c97aa964b2c41500a317119fffb636fa31c7fbe2c751d893cf233",
+      "ledger_status": "succeeded",
+      "score": 18.326911094673694,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 20.106818387139366,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -1.0316678914277346,
+          "final_global_tns_setup_ns": -406.8993293031496,
+          "wns_deficit_improvement": -0.14597953925851398,
+          "tns_deficit_improvement": 0.43243333262466543
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 50.98952334588657,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6667130369829732,
+          "final_global_tns_setup_ns": -231.64859131012872,
+          "wns_deficit_improvement": 0.2594133196468575,
+          "tns_deficit_improvement": 0.6768831760002044
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 54.338608428972535,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6737650628125347,
+          "final_global_tns_setup_ns": -187.887598797362,
+          "wns_deficit_improvement": 0.2515799099050694,
+          "tns_deficit_improvement": 0.737923533879496
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -61.81853661796898,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.903624645131078,
+          "final_global_tns_setup_ns": -13833.488474274855,
+          "wns_deficit_improvement": 0.08769436212303529,
+          "tns_deficit_improvement": -1.08877185171484
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -26.676352848374297,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.811513434975734,
+          "final_global_tns_setup_ns": -10001.446126814784,
+          "wns_deficit_improvement": 0.09832664542461615,
+          "tns_deficit_improvement": -0.5101569777559823
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -36.056689043985315,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.187442067173158,
+          "final_global_tns_setup_ns": -10845.257145090278,
+          "wns_deficit_improvement": 0.05493366739340828,
+          "tns_deficit_improvement": -0.6375672623286941
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": 46.99834567577677,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6231562109374956,
+          "final_global_tns_setup_ns": -9.458066597618194,
+          "wns_deficit_improvement": -0.17791040007288667,
+          "tns_deficit_improvement": 0.9019126946448706
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": 97.24553441810674,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.036132875492148005,
+          "final_global_tns_setup_ns": -0.036132875492148005,
+          "wns_deficit_improvement": 0.9317004483310705,
+          "tns_deficit_improvement": 0.9996252747477323
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 19.814948106509846,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7013865242679772,
+          "final_global_tns_setup_ns": -43.63824269897889,
+          "wns_deficit_improvement": -0.325783915662668,
+          "tns_deficit_improvement": 0.5474384122169428
+        }
+      ]
+    },
+    {
+      "round": 5,
+      "request_id": "e-af0a333b4fdfda1c844d47dcd3f8b00bf1cc8f74f225a434d5db8b44fd04",
+      "candidate_id": "9e88e03760c1cc8dee32bb3981c2a492e34aa9f40d9a11460131da839683e420",
+      "ledger_status": "succeeded",
+      "score": 28.02476018377943,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 33.65929862195022,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.8090188747911532,
+          "final_global_tns_setup_ns": -363.17068069662946,
+          "wns_deficit_improvement": 0.10133960251340324,
+          "tns_deficit_improvement": 0.4934285753569016
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 54.441533910313076,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6559825091018862,
+          "final_global_tns_setup_ns": -196.09860246231932,
+          "wns_deficit_improvement": 0.27133281961321865,
+          "tns_deficit_improvement": 0.7264703520964056
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 57.355268392390336,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6235585557729989,
+          "final_global_tns_setup_ns": -178.4974067964969,
+          "wns_deficit_improvement": 0.3073494363999984,
+          "tns_deficit_improvement": 0.7510215156065067
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -21.39287624723553,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.023259617112934,
+          "final_global_tns_setup_ns": -9310.342911264644,
+          "wns_deficit_improvement": 0.07388504496454185,
+          "tns_deficit_improvement": -0.40580463409695344
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -21.066802716532532,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.8406030554004635,
+          "final_global_tns_setup_ns": -9367.440080762066,
+          "wns_deficit_improvement": 0.09496886644234499,
+          "tns_deficit_improvement": -0.41442595623710554
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -3.5265734652858933,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.9600257527340075,
+          "final_global_tns_setup_ns": -7370.49115668478,
+          "wns_deficit_improvement": 0.08118405188450997,
+          "tns_deficit_improvement": -0.11289892567777156
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": 18.703108132888964,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7276002228883808,
+          "final_global_tns_setup_ns": -42.239823501179444,
+          "wns_deficit_improvement": -0.37533391241692765,
+          "tns_deficit_improvement": 0.5619410771594345
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": 63.30643811519436,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.4406390932408621,
+          "final_global_tns_setup_ns": -5.427345393390332,
+          "wns_deficit_improvement": 0.16708946890499912,
+          "tns_deficit_improvement": 0.9437143226499067
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 70.74344691033188,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.29146108573819673,
+          "final_global_tns_setup_ns": -11.60214179791076,
+          "wns_deficit_improvement": 0.44907065342241653,
+          "tns_deficit_improvement": 0.8796770128905871
+        }
+      ]
+    },
+    {
+      "round": 6,
+      "request_id": "e-d1a07671ef265fcfe5cc2a594771050e69638e118146914f889e8a898571",
+      "candidate_id": "7196c38fd3f632fb5a2abf144031b37f8a0af26b3d8377116317b024193b5f17",
+      "ledger_status": "succeeded",
+      "score": 35.33739663472531,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 40.13674448552861,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7068015262014307,
+          "final_global_tns_setup_ns": -340.0415192336708,
+          "wns_deficit_improvement": 0.21488291525425768,
+          "tns_deficit_improvement": 0.525690464589305
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 46.900269707912926,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7404440603566103,
+          "final_global_tns_setup_ns": -241.3655761352669,
+          "wns_deficit_improvement": 0.17751269552464413,
+          "tns_deficit_improvement": 0.6633293647821192
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 53.552106243956544,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6710663326079506,
+          "final_global_tns_setup_ns": -198.71800412092594,
+          "wns_deficit_improvement": 0.25457766685973465,
+          "tns_deficit_improvement": 0.722816659492786
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -5.744047978562867,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.882295927957181,
+          "final_global_tns_setup_ns": -7654.86969434116,
+          "wns_deficit_improvement": 0.09015630962182197,
+          "tns_deficit_improvement": -0.15583833939059577
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -16.285614296718016,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.829555891903798,
+          "final_global_tns_setup_ns": -8845.323714064716,
+          "wns_deficit_improvement": 0.09624402688999673,
+          "tns_deficit_improvement": -0.33558958953863144
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -20.2324385010213,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.235860226914049,
+          "final_global_tns_setup_ns": -9073.904295441902,
+          "wns_deficit_improvement": 0.0493448189737843,
+          "tns_deficit_improvement": -0.3701038543328779
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": 74.49495435581103,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.31825210034773294,
+          "final_global_tns_setup_ns": -2.317769597407585,
+          "wns_deficit_improvement": 0.39842939496556606,
+          "tns_deficit_improvement": 0.9759629759531399
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": 100.0,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": 0.023374636221537907,
+          "final_global_tns_setup_ns": 0.0,
+          "wns_deficit_improvement": 1.0,
+          "tns_deficit_improvement": 1.0
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 45.214595695620844,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.5578853092953758,
+          "final_global_tns_setup_ns": -20.255797612554137,
+          "wns_deficit_improvement": -0.05453319141003507,
+          "tns_deficit_improvement": 0.7899320558670375
+        }
+      ]
+    },
+    {
+      "round": 7,
+      "request_id": "e-cd795d47e8acf6f3f1d61ee7a3c854517da9b26c12a3934484b2b332d45f",
+      "candidate_id": "808d09ae67052d17a6381d9177d6c250ef5e1c39a6378a8e4b18716053717782",
+      "ledger_status": "succeeded",
+      "score": 34.905860535876954,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 40.13674448552861,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7068015262014307,
+          "final_global_tns_setup_ns": -340.0415192336708,
+          "wns_deficit_improvement": 0.21488291525425768,
+          "tns_deficit_improvement": 0.525690464589305
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 46.900269707912926,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7404440603566103,
+          "final_global_tns_setup_ns": -241.3655761352669,
+          "wns_deficit_improvement": 0.17751269552464413,
+          "tns_deficit_improvement": 0.6633293647821192
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 53.552106243956544,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6710663326079506,
+          "final_global_tns_setup_ns": -198.71800412092594,
+          "wns_deficit_improvement": 0.25457766685973465,
+          "tns_deficit_improvement": 0.722816659492786
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -5.744047978562867,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.882295927957181,
+          "final_global_tns_setup_ns": -7654.86969434116,
+          "wns_deficit_improvement": 0.09015630962182197,
+          "tns_deficit_improvement": -0.15583833939059577
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -16.285614296718016,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.829555891903798,
+          "final_global_tns_setup_ns": -8845.323714064716,
+          "wns_deficit_improvement": 0.09624402688999673,
+          "tns_deficit_improvement": -0.33558958953863144
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -20.2324385010213,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.235860226914049,
+          "final_global_tns_setup_ns": -9073.904295441902,
+          "wns_deficit_improvement": 0.0493448189737843,
+          "tns_deficit_improvement": -0.3701038543328779
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": 74.49495435581103,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.31825210034773294,
+          "final_global_tns_setup_ns": -2.317769597407585,
+          "wns_deficit_improvement": 0.39842939496556606,
+          "tns_deficit_improvement": 0.9759629759531399
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": 96.11617511036485,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.04486011689094468,
+          "final_global_tns_setup_ns": -0.7906560074891207,
+          "wns_deficit_improvement": 0.9152039291162113,
+          "tns_deficit_improvement": 0.9918002990952736
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 45.214595695620844,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.5578853092953758,
+          "final_global_tns_setup_ns": -20.255797612554137,
+          "wns_deficit_improvement": -0.05453319141003507,
+          "tns_deficit_improvement": 0.7899320558670375
+        }
+      ]
+    },
+    {
+      "round": 8,
+      "request_id": "e-52808bdeb43efef90479e8ae8db488e376461be173dd60f1c8a50fa93ddb",
+      "candidate_id": "073da80e76623802be329688413fb6b373691f94a44fe77f0effc984814937ac",
+      "ledger_status": "succeeded",
+      "score": 35.33739663472531,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 40.13674448552861,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7068015262014307,
+          "final_global_tns_setup_ns": -340.0415192336708,
+          "wns_deficit_improvement": 0.21488291525425768,
+          "tns_deficit_improvement": 0.525690464589305
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 46.900269707912926,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7404440603566103,
+          "final_global_tns_setup_ns": -241.3655761352669,
+          "wns_deficit_improvement": 0.17751269552464413,
+          "tns_deficit_improvement": 0.6633293647821192
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 53.552106243956544,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6710663326079506,
+          "final_global_tns_setup_ns": -198.71800412092594,
+          "wns_deficit_improvement": 0.25457766685973465,
+          "tns_deficit_improvement": 0.722816659492786
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -5.744047978562867,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.882295927957181,
+          "final_global_tns_setup_ns": -7654.86969434116,
+          "wns_deficit_improvement": 0.09015630962182197,
+          "tns_deficit_improvement": -0.15583833939059577
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -16.285614296718016,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.829555891903798,
+          "final_global_tns_setup_ns": -8845.323714064716,
+          "wns_deficit_improvement": 0.09624402688999673,
+          "tns_deficit_improvement": -0.33558958953863144
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -20.2324385010213,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.235860226914049,
+          "final_global_tns_setup_ns": -9073.904295441902,
+          "wns_deficit_improvement": 0.0493448189737843,
+          "tns_deficit_improvement": -0.3701038543328779
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": 74.49495435581103,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.31825210034773294,
+          "final_global_tns_setup_ns": -2.317769597407585,
+          "wns_deficit_improvement": 0.39842939496556606,
+          "tns_deficit_improvement": 0.9759629759531399
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": 100.0,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": 0.023374636221537907,
+          "final_global_tns_setup_ns": 0.0,
+          "wns_deficit_improvement": 1.0,
+          "tns_deficit_improvement": 1.0
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 45.214595695620844,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.5578853092953758,
+          "final_global_tns_setup_ns": -20.255797612554137,
+          "wns_deficit_improvement": -0.05453319141003507,
+          "tns_deficit_improvement": 0.7899320558670375
+        }
+      ]
+    },
+    {
+      "round": 9,
+      "request_id": "e-f0f7609af5a02d298147c3d8a3d7d02b0bb8bb0179a12fd4e07f03e51b1c",
+      "candidate_id": "5f21bcb02e81b56ea06299c98db9c9dd3b965a1023a34b86c6267eae6f8b4436",
+      "ledger_status": "succeeded",
+      "score": 32.874494449196646,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 16.34438543830558,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -1.1044196980659582,
+          "final_global_tns_setup_ns": -413.23111790913026,
+          "wns_deficit_improvement": -0.22679244673023585,
+          "tns_deficit_improvement": 0.4236013884585836
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 30.55482063959523,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.9054657280248832,
+          "final_global_tns_setup_ns": -349.0610068679508,
+          "wns_deficit_improvement": -0.005793828070314312,
+          "tns_deficit_improvement": 0.5131095627067968
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 47.35388630131283,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7375558150763628,
+          "final_global_tns_setup_ns": -237.47885041731618,
+          "wns_deficit_improvement": 0.18072096634806095,
+          "tns_deficit_improvement": 0.6687507941231733
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -7.062123868120818,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.203416844681682,
+          "final_global_tns_setup_ns": -7636.702537159444,
+          "wns_deficit_improvement": 0.05308971854218924,
+          "tns_deficit_improvement": -0.15309521016347313
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -45.15292102606825,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.307085032761018,
+          "final_global_tns_setup_ns": -11788.322232472048,
+          "wns_deficit_improvement": 0.04112342754283989,
+          "tns_deficit_improvement": -0.7799643021296975
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -9.924477792654448,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.229918313118207,
+          "final_global_tns_setup_ns": -7939.1422758617855,
+          "wns_deficit_improvement": 0.050030686749535196,
+          "tns_deficit_improvement": -0.1987617543772643
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": 94.53586390199663,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.07142908688927602,
+          "final_global_tns_setup_ns": -0.10193979282571641,
+          "wns_deficit_improvement": 0.8649823866988188,
+          "tns_deficit_improvement": 0.9989428072340648
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": 83.11561266853641,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.21494939769844099,
+          "final_global_tns_setup_ns": -1.0160139683824017,
+          "wns_deficit_improvement": 0.5936955668667925,
+          "tns_deficit_improvement": 0.989463166564412
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 86.10540377986663,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.17612312107237776,
+          "final_global_tns_setup_ns": -0.9289698162547536,
+          "wns_deficit_improvement": 0.6670862740943482,
+          "tns_deficit_improvement": 0.990365880268212
+        }
+      ]
+    },
+    {
+      "round": 10,
+      "request_id": "e-926f8764f5c5f235d81458a540f1759d4ba0f86ab8ef23ad9370a080d38d",
+      "candidate_id": "ebf8e0a01ccc89dd4ed24425e45fb784bfd0dc11a3f50beb6ce577c552ec654c",
+      "ledger_status": "succeeded",
+      "score": 35.33739663472531,
+      "cells": [
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1001",
+          "score": 40.13674448552861,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7068015262014307,
+          "final_global_tns_setup_ns": -340.0415192336708,
+          "wns_deficit_improvement": 0.21488291525425768,
+          "tns_deficit_improvement": 0.525690464589305
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1002",
+          "score": 46.900269707912926,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.7404440603566103,
+          "final_global_tns_setup_ns": -241.3655761352669,
+          "wns_deficit_improvement": 0.17751269552464413,
+          "tns_deficit_improvement": 0.6633293647821192
+        },
+        {
+          "case": "bp_fe-ng45",
+          "seed": "1003",
+          "score": 53.552106243956544,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.6710663326079506,
+          "final_global_tns_setup_ns": -198.71800412092594,
+          "wns_deficit_improvement": 0.25457766685973465,
+          "tns_deficit_improvement": 0.722816659492786
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1001",
+          "score": -5.744047978562867,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.882295927957181,
+          "final_global_tns_setup_ns": -7654.86969434116,
+          "wns_deficit_improvement": 0.09015630962182197,
+          "tns_deficit_improvement": -0.15583833939059577
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1002",
+          "score": -16.285614296718016,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -7.829555891903798,
+          "final_global_tns_setup_ns": -8845.323714064716,
+          "wns_deficit_improvement": 0.09624402688999673,
+          "tns_deficit_improvement": -0.33558958953863144
+        },
+        {
+          "case": "bp-ng45",
+          "seed": "1003",
+          "score": -20.2324385010213,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -8.235860226914049,
+          "final_global_tns_setup_ns": -9073.904295441902,
+          "wns_deficit_improvement": 0.0493448189737843,
+          "tns_deficit_improvement": -0.3701038543328779
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1001",
+          "score": 74.49495435581103,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.31825210034773294,
+          "final_global_tns_setup_ns": -2.317769597407585,
+          "wns_deficit_improvement": 0.39842939496556606,
+          "tns_deficit_improvement": 0.9759629759531399
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1002",
+          "score": 100.0,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": 0.023374636221537907,
+          "final_global_tns_setup_ns": 0.0,
+          "wns_deficit_improvement": 1.0,
+          "tns_deficit_improvement": 1.0
+        },
+        {
+          "case": "ariane133-ng45",
+          "seed": "1003",
+          "score": 45.214595695620844,
+          "status": "succeeded",
+          "valid": true,
+          "final_global_wns_setup_ns": -0.5578853092953758,
+          "final_global_tns_setup_ns": -20.255797612554137,
+          "wns_deficit_improvement": -0.05453319141003507,
+          "tns_deficit_improvement": 0.7899320558670375
+        }
+      ]
+    }
+  ],
+  "train": {
+    "score": 35.33739663472531,
+    "cells": [
+      {
+        "case": "bp_fe-ng45",
+        "seed": "1001",
+        "score": 40.13674448552861,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.7068015262014307,
+        "final_global_tns_setup_ns": -340.0415192336708,
+        "wns_deficit_improvement": 0.21488291525425768,
+        "tns_deficit_improvement": 0.525690464589305
+      },
+      {
+        "case": "bp_fe-ng45",
+        "seed": "1002",
+        "score": 46.900269707912926,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.7404440603566103,
+        "final_global_tns_setup_ns": -241.3655761352669,
+        "wns_deficit_improvement": 0.17751269552464413,
+        "tns_deficit_improvement": 0.6633293647821192
+      },
+      {
+        "case": "bp_fe-ng45",
+        "seed": "1003",
+        "score": 53.552106243956544,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.6710663326079506,
+        "final_global_tns_setup_ns": -198.71800412092594,
+        "wns_deficit_improvement": 0.25457766685973465,
+        "tns_deficit_improvement": 0.722816659492786
+      },
+      {
+        "case": "bp-ng45",
+        "seed": "1001",
+        "score": -5.744047978562867,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -7.882295927957181,
+        "final_global_tns_setup_ns": -7654.86969434116,
+        "wns_deficit_improvement": 0.09015630962182197,
+        "tns_deficit_improvement": -0.15583833939059577
+      },
+      {
+        "case": "bp-ng45",
+        "seed": "1002",
+        "score": -16.285614296718016,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -7.829555891903798,
+        "final_global_tns_setup_ns": -8845.323714064716,
+        "wns_deficit_improvement": 0.09624402688999673,
+        "tns_deficit_improvement": -0.33558958953863144
+      },
+      {
+        "case": "bp-ng45",
+        "seed": "1003",
+        "score": -20.2324385010213,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -8.235860226914049,
+        "final_global_tns_setup_ns": -9073.904295441902,
+        "wns_deficit_improvement": 0.0493448189737843,
+        "tns_deficit_improvement": -0.3701038543328779
+      },
+      {
+        "case": "ariane133-ng45",
+        "seed": "1001",
+        "score": 74.49495435581103,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.31825210034773294,
+        "final_global_tns_setup_ns": -2.317769597407585,
+        "wns_deficit_improvement": 0.39842939496556606,
+        "tns_deficit_improvement": 0.9759629759531399
+      },
+      {
+        "case": "ariane133-ng45",
+        "seed": "1002",
+        "score": 100.0,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": 0.023374636221537907,
+        "final_global_tns_setup_ns": 0.0,
+        "wns_deficit_improvement": 1.0,
+        "tns_deficit_improvement": 1.0
+      },
+      {
+        "case": "ariane133-ng45",
+        "seed": "1003",
+        "score": 45.214595695620844,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.5578853092953758,
+        "final_global_tns_setup_ns": -20.255797612554137,
+        "wns_deficit_improvement": -0.05453319141003507,
+        "tns_deficit_improvement": 0.7899320558670375
+      }
+    ]
+  },
+  "validation": {
+    "score": -0.12654622450248887,
+    "cells": [
+      {
+        "case": "swerv_wrapper-ng45",
+        "seed": "1001",
+        "score": -12.909161394347427,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -1.840161408668777,
+        "final_global_tns_setup_ns": -2745.7905029077297,
+        "wns_deficit_improvement": 0.258578405492706,
+        "tns_deficit_improvement": -0.38753829356759445
+      },
+      {
+        "case": "swerv_wrapper-ng45",
+        "seed": "1002",
+        "score": 6.623419291508209,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -1.834220161006768,
+        "final_global_tns_setup_ns": -2104.7335989801045,
+        "wns_deficit_improvement": 0.26097220056643056,
+        "tns_deficit_improvement": -0.06359114551915022
+      },
+      {
+        "case": "swerv_wrapper-ng45",
+        "seed": "1003",
+        "score": -28.887185743664944,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -1.9768622853786177,
+        "final_global_tns_setup_ns": -3200.1079030229043,
+        "wns_deficit_improvement": 0.20350009469709127,
+        "tns_deficit_improvement": -0.6171198255258099
+      },
+      {
+        "case": "bp_fe-asap7",
+        "seed": "1001",
+        "score": 14.948489211096941,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.4185776288499899,
+        "final_global_tns_setup_ns": -9.280271036534222,
+        "wns_deficit_improvement": 0.06996049372812516,
+        "tns_deficit_improvement": 0.20250115769953225
+      },
+      {
+        "case": "bp_fe-asap7",
+        "seed": "1002",
+        "score": -8.651786077577745,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.45852001271427445,
+        "final_global_tns_setup_ns": -13.16894275345754,
+        "wns_deficit_improvement": -0.018787667683468182,
+        "tns_deficit_improvement": -0.13167132283731697
+      },
+      {
+        "case": "bp_fe-asap7",
+        "seed": "1003",
+        "score": 28.11694736597003,
+        "status": "succeeded",
+        "valid": true,
+        "final_global_wns_setup_ns": -0.37618365043339225,
+        "final_global_tns_setup_ns": -7.457060069395602,
+        "wns_deficit_improvement": 0.1641558640440176,
+        "tns_deficit_improvement": 0.3591785467368221
+      }
+    ]
+  },
+  "five_case_score": 21.15181949103419,
+  "native_archive_sha256": "41345a9bb0c4ca1dc8c56df460a4838daa2a4c9ed3199e604a1be59cef7d5c71",
+  "algorithm_sha256": "eb98dae7624e7380a268dcc60f1913ad149f89ba6ef200cca772c48f5d5c7bba",
+  "starter_sha256": "f18b6e303cad3e67b7dd5be6a63a2ca7399e43997fd0c900334adae1a31bc87b",
+  "model_budget": {
+    "model": "deepseek-flash",
+    "calls_recorded": 23,
+    "spent_rmb": "1.39987856",
+    "limit_rmb": "15"
+  }
+}
